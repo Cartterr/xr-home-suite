@@ -1,6 +1,7 @@
 #include <xrh/core/probe_report.h>
 
 #include <chrono>
+#include <cmath>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
@@ -48,6 +49,20 @@ void writeNumber(std::ofstream& file, const char* name, T value, bool comma = tr
     file << "  \"" << name << "\": " << value << (comma ? "," : "") << "\n";
 }
 
+void writeNumber(std::ofstream& file, const char* name, double value, bool comma = true) {
+    file << "  \"" << name << "\": ";
+    if (std::isfinite(value)) {
+        file << value;
+    } else {
+        file << "null";
+    }
+    file << (comma ? "," : "") << "\n";
+}
+
+void writeNumber(std::ofstream& file, const char* name, float value, bool comma = true) {
+    writeNumber(file, name, static_cast<double>(value), comma);
+}
+
 }  // namespace
 
 void writeProbeReport(const std::filesystem::path& path, const ProbeReport& report) {
@@ -60,7 +75,9 @@ void writeProbeReport(const std::filesystem::path& path, const ProbeReport& repo
     file << "{\n";
     writeString(file, "generatedAtUtc", utcNow());
     writeNumber(file, "exitCode", report.exitCode);
+    writeNumber(file, "elapsedSeconds", report.elapsedSeconds);
     writeNumber(file, "submittedFrames", report.submittedFrames);
+    writeNumber(file, "submittedFramesPerSecond", report.submittedFramesPerSecond);
     writeString(file, "runtimeName", report.runtimeName);
     writeString(file, "runtimeVersion", report.runtimeVersion);
     writeString(file, "gpuAdapterName", report.gpuAdapterName);
@@ -79,12 +96,14 @@ void writeProbeReport(const std::filesystem::path& path, const ProbeReport& repo
     writeNumber(file, "environmentDepthWidth", report.environmentDepthWidth);
     writeNumber(file, "environmentDepthHeight", report.environmentDepthHeight);
     writeNumber(file, "environmentDepthFrames", report.environmentDepthFrames);
+    writeNumber(file, "environmentDepthFramesPerSecond", report.environmentDepthFramesPerSecond);
     writeString(file, "lastEnvironmentDepthResult", report.lastEnvironmentDepthResult);
     writeNumber(file, "lastEnvironmentDepthNearZ", report.lastEnvironmentDepthNearZ);
     writeNumber(file, "lastEnvironmentDepthFarZ", report.lastEnvironmentDepthFarZ);
     writeBool(file, "handTrackingSupported", report.handTrackingSupported);
     writeBool(file, "handTrackingReady", report.handTrackingReady);
     writeNumber(file, "handTrackingFrames", report.handTrackingFrames);
+    writeNumber(file, "handTrackingFramesPerSecond", report.handTrackingFramesPerSecond);
     writeNumber(file, "activeHandCount", report.activeHandCount);
     writeNumber(file, "leftValidJoints", report.leftValidJoints);
     writeNumber(file, "rightValidJoints", report.rightValidJoints);

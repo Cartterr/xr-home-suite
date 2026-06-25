@@ -2,8 +2,11 @@
 #include <xrh/core/probe_report.h>
 
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <iterator>
+#include <limits>
+#include <string>
 
 namespace {
 
@@ -44,10 +47,18 @@ int testReportWriter() {
     report.runtimeName = "TestRuntime";
     report.runtimeVersion = "1.2.3";
     report.enabledExtensions = {"XR_TEST_one", "XR_TEST_two"};
+    report.lastEnvironmentDepthFarZ = std::numeric_limits<float>::infinity();
     xrh::writeProbeReport(path, report);
     const bool exists = std::filesystem::exists(path);
+    std::ifstream input(path);
+    const std::string text((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    input.close();
     std::filesystem::remove(path);
-    return expect(exists, "report writer created file");
+    int failures = 0;
+    failures += expect(exists, "report writer created file");
+    failures += expect(text.find("\"lastEnvironmentDepthFarZ\": null") != std::string::npos,
+                       "report writer emits valid JSON for infinity");
+    return failures;
 }
 
 }  // namespace

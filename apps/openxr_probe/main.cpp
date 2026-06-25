@@ -174,11 +174,27 @@ private:
         ProbeReport report{};
         report.exitCode = exitCode;
         report.submittedFrames = frameIndex_;
+        report.elapsedSeconds = elapsedSeconds();
         context_.appendReport(report);
         renderer_.appendReport(report);
         meta_.appendReport(report);
+        if (report.elapsedSeconds > 0.0) {
+            report.submittedFramesPerSecond =
+                static_cast<double>(report.submittedFrames) / report.elapsedSeconds;
+            report.environmentDepthFramesPerSecond =
+                static_cast<double>(report.environmentDepthFrames) / report.elapsedSeconds;
+            report.handTrackingFramesPerSecond =
+                static_cast<double>(report.handTrackingFrames) / report.elapsedSeconds;
+        }
         writeProbeReport(*options_.reportPath, report);
         std::cout << "Probe report: " << options_.reportPath->string() << "\n";
+    }
+
+    double elapsedSeconds() const {
+        if (startTime_ == std::chrono::steady_clock::time_point{}) {
+            return 0.0;
+        }
+        return std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime_).count();
     }
 
     AppOptions options_{};

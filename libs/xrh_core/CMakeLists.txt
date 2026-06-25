@@ -6,7 +6,7 @@ add_library(xrh_core
 )
 
 target_include_directories(xrh_core PUBLIC include)
-target_link_libraries(xrh_core PUBLIC openxr_loader)
+target_link_libraries(xrh_core PUBLIC openxr_headers)
 
 if(MSVC)
     target_compile_options(xrh_core PRIVATE /W4 /permissive-)

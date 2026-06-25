@@ -34,6 +34,9 @@ set_target_properties(openxr_loader PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${OPENXR_INCLUDE_DIR}"
 )
 
+add_library(openxr_headers INTERFACE)
+target_include_directories(openxr_headers INTERFACE "${OPENXR_INCLUDE_DIR}")
+
 add_subdirectory(libs/xrh_core)
 add_subdirectory(libs/xrh_openxr)
 add_subdirectory(libs/xrh_d3d11)

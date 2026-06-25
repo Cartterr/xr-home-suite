@@ -11,7 +11,9 @@ namespace xrh {
 
 struct ProbeReport {
     int exitCode{0};
+    double elapsedSeconds{0.0};
     uint64_t submittedFrames{0};
+    double submittedFramesPerSecond{0.0};
     std::string runtimeName;
     std::string runtimeVersion;
     std::string gpuAdapterName;
@@ -26,12 +28,14 @@ struct ProbeReport {
     uint32_t environmentDepthWidth{0};
     uint32_t environmentDepthHeight{0};
     uint64_t environmentDepthFrames{0};
+    double environmentDepthFramesPerSecond{0.0};
     std::string lastEnvironmentDepthResult;
     float lastEnvironmentDepthNearZ{0.0f};
     float lastEnvironmentDepthFarZ{0.0f};
     bool handTrackingSupported{false};
     bool handTrackingReady{false};
     uint64_t handTrackingFrames{0};
+    double handTrackingFramesPerSecond{0.0};
     uint32_t activeHandCount{0};
     uint32_t leftValidJoints{0};
     uint32_t rightValidJoints{0};
