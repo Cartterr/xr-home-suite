@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -9,6 +10,7 @@ from .paths import ensure_external_layout, external_home
 
 TARGET_UNREAL_VERSION = "5.7.4"
 TARGET_META_INTEGRATION_VERSION = "201.0"
+META_PLUGIN_NAMES = {"MetaXR", "MetaXRPlatform", "OculusXR"}
 
 UNREAL_SOURCE_REMOTES = [
     (
@@ -67,6 +69,39 @@ def print_engine_markers(path: Path) -> None:
         print(f"  {'READY' if ok else 'PENDING'}: {label} - {marker}")
 
 
+def find_meta_plugin_markers(path: Path) -> list[tuple[Path, str]]:
+    plugin_roots = [
+        path / "Engine" / "Plugins" / "Marketplace",
+        path / "Engine" / "Plugins" / "Runtime",
+        path / "Engine" / "Plugins",
+    ]
+    markers: list[tuple[Path, str]] = []
+    for root in plugin_roots:
+        if not root.exists():
+            continue
+        for plugin_file in root.rglob("*.uplugin"):
+            if not any(name.lower() in plugin_file.stem.lower() for name in META_PLUGIN_NAMES):
+                continue
+            version = "unknown version"
+            try:
+                data = json.loads(plugin_file.read_text(encoding="utf-8"))
+                version = str(data.get("VersionName") or data.get("Version") or version)
+            except (OSError, json.JSONDecodeError):
+                pass
+            markers.append((plugin_file, version))
+    return markers
+
+
+def print_meta_plugin_markers(path: Path) -> None:
+    markers = find_meta_plugin_markers(path)
+    if not markers:
+        expected = path / "Engine" / "Plugins" / "Marketplace"
+        print(f"  PENDING: Meta XR plugin {TARGET_META_INTEGRATION_VERSION} - expected under {expected}")
+        return
+    for plugin_file, version in markers:
+        print(f"  READY: Meta XR plugin candidate {version} - {plugin_file}")
+
+
 def run_doctor() -> int:
     ensure_external_layout()
     checks: list[tuple[str, bool, str]] = []
@@ -123,6 +158,7 @@ def run_unreal_doctor() -> int:
         for path in found:
             print(f"FOUND: {path}")
             print_engine_markers(path)
+            print_meta_plugin_markers(path)
     else:
         print(f"No UE {TARGET_UNREAL_VERSION} installation found.")
 

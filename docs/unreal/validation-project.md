@@ -46,7 +46,8 @@ Source validation order:
 - Stock UE `5.7.4-release` source is cloned under `C:\XRHomeSuite\engines\UE_5.7.4`.
 - Dependencies are synced outside the repo with cache under `C:\XRHomeSuite\cache`.
 - `UE5.sln` and UnrealBuildTool are generated.
-- The validation project waits for `Engine\Binaries\Win64\UnrealEditor.exe` plus the Meta plugin path.
+- `Engine\Binaries\Win64\UnrealEditor.exe` is built.
+- The validation project waits for the Meta XR / Horizon Integration SDK `201.0` plugin path and enough free `C:` space for plugin/derived-data work.
 
 ## Required Scene
 

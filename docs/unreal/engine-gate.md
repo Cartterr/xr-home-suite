@@ -28,7 +28,8 @@ Local stock Unreal source install:
 - Dependencies: synced with `GitDependencies.exe` using Win64-focused excludes and cache at `C:\XRHomeSuite\cache\ue-gitdeps`
 - UnrealBuildTool: built under `Engine\Binaries\DotNET\UnrealBuildTool`
 - Solution: `C:\XRHomeSuite\engines\UE_5.7.4\UE5.sln`
-- Editor binary: required next marker is `C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\Win64\UnrealEditor.exe`
+- Editor binary: built successfully at `C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\Win64\UnrealEditor.exe`
+- Editor build log: `C:\XRHomeSuite\artifacts\logs\ue-5.7.4-build-unrealeditor-resume.log`
 
 Known compatible source paths:
 
@@ -36,7 +37,7 @@ Known compatible source paths:
 - Meta validation path: `Oculus-VR/UnrealEngine` branch `oculus-5.7`; visible 201.0 tag is `oculus-5.7.3-release-1.201.0-v201.0`.
 - RTX experiment path: `NvRTX/UnrealEngine` tag `nvrtx-5.7.4.0`.
 
-`python -m xrhs unreal-doctor` reports source access and local engine markers. It can pass the source/install gate before the full editor binary is finished.
+`python -m xrhs unreal-doctor` reports source access, local engine markers, the full editor binary, and the Meta plugin staging state.
 
 ## Access Verification Commands
 
@@ -56,7 +57,8 @@ Private Unreal repositories usually return `404` when the GitHub account has not
 - Keep all engine source, dependencies, intermediates, and caches on `C:\XRHomeSuite`, never under the repo.
 - Use direct executables from the source tree rather than adding tracked `.bat`, `.cmd`, or `.ps1` wrappers.
 - If the editor build fails on `atls.lib`, `atlbase.h`, or `DumpSyms`, install the Visual Studio Build Tools 2022 C++ ATL/MFC component and rerun the same UBT command.
-- Do not create the validation project until `UnrealEditor.exe` exists and Meta XR / Horizon Integration SDK `201.0` is installed or staged.
+- Do not create the validation project until Meta XR / Horizon Integration SDK `201.0` is installed or staged.
+- Keep at least tens of GB free on `C:` before cloning Meta/NvRTX engine paths or installing large Unreal plugins. The stock source build can leave `C:\XRHomeSuite\engines` above 220 GB.
 
 ## Official References
 
@@ -70,7 +72,7 @@ Private Unreal repositories usually return `404` when the GitHub account has not
 
 ## First Project After Gate Passes
 
-After the editor binary and Meta plugin are ready, create the smallest possible Windows PC-VR validation scene:
+After the Meta plugin is ready, create the smallest possible Windows PC-VR validation scene:
 
 - Meta Link/OpenXR runtime only.
 - Passthrough background.
