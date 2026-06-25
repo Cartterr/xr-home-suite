@@ -70,6 +70,7 @@ Private camera-frame work should remain a separate research track until the ABI 
 
 ## Useful References
 
+- [XR Link capability matrix](xr-link-capability-matrix.md)
 - [Meta passthrough](https://developers.meta.com/horizon/documentation/native/android/mobile-passthrough/)
 - [Meta Depth API](https://developers.meta.com/horizon/documentation/native/android/mobile-depth/)
 - [Meta passthrough over Link](https://developers.meta.com/horizon/documentation/native/android/mobile-passthrough-over-link/)
