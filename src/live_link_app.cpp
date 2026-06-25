@@ -20,10 +20,12 @@
 #include <iomanip>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -54,6 +56,11 @@ struct Color {
     float g;
     float b;
     float a;
+};
+
+struct Vec2 {
+    float x;
+    float y;
 };
 
 struct SwapchainBundle {
@@ -208,6 +215,27 @@ void appendRect(std::vector<Vertex>& vertices, float x0, float y0, float x1, flo
     vertices.insert(vertices.end(), {a, b, c, a, c, d});
 }
 
+void appendLine(std::vector<Vertex>& vertices, Vec2 a, Vec2 b, float halfWidth, Color color) {
+    const float dx = b.x - a.x;
+    const float dy = b.y - a.y;
+    const float length = std::sqrt(dx * dx + dy * dy);
+    if (length <= std::numeric_limits<float>::epsilon()) {
+        appendRect(vertices, a.x - halfWidth, a.y - halfWidth, a.x + halfWidth, a.y + halfWidth, color);
+        return;
+    }
+
+    const float nx = -dy / length * halfWidth;
+    const float ny = dx / length * halfWidth;
+    vertices.insert(vertices.end(), {
+        {a.x + nx, a.y + ny, color.r, color.g, color.b, color.a},
+        {b.x + nx, b.y + ny, color.r, color.g, color.b, color.a},
+        {b.x - nx, b.y - ny, color.r, color.g, color.b, color.a},
+        {a.x + nx, a.y + ny, color.r, color.g, color.b, color.a},
+        {b.x - nx, b.y - ny, color.r, color.g, color.b, color.a},
+        {a.x - nx, a.y - ny, color.r, color.g, color.b, color.a},
+    });
+}
+
 void appendRotatedQuad(std::vector<Vertex>& vertices, float cx, float cy, float radius, float angle, Color color) {
     std::array<Vertex, 4> corners{};
     for (size_t i = 0; i < corners.size(); ++i) {
@@ -224,6 +252,24 @@ void appendRotatedQuad(std::vector<Vertex>& vertices, float cx, float cy, float 
     vertices.insert(vertices.end(), {corners[0], corners[1], corners[2], corners[0], corners[2], corners[3]});
 }
 
+XrVector3f rotateByInverse(const XrQuaternionf& q, XrVector3f v) {
+    const XrQuaternionf inverse{-q.x, -q.y, -q.z, q.w};
+    const XrVector3f u{inverse.x, inverse.y, inverse.z};
+    const float s = inverse.w;
+    const float dotUV = u.x * v.x + u.y * v.y + u.z * v.z;
+    const float dotUU = u.x * u.x + u.y * u.y + u.z * u.z;
+    const XrVector3f cross{
+        u.y * v.z - u.z * v.y,
+        u.z * v.x - u.x * v.z,
+        u.x * v.y - u.y * v.x,
+    };
+    return XrVector3f{
+        2.0f * dotUV * u.x + (s * s - dotUU) * v.x + 2.0f * s * cross.x,
+        2.0f * dotUV * u.y + (s * s - dotUU) * v.y + 2.0f * s * cross.y,
+        2.0f * dotUV * u.z + (s * s - dotUU) * v.z + 2.0f * s * cross.z,
+    };
+}
+
 class LiveLinkApp {
 public:
     explicit LiveLinkApp(int runSeconds) : runSeconds_(runSeconds) {}
@@ -234,6 +280,7 @@ public:
             initializeD3D11();
             createSession();
             createAppSpace();
+            createHandTracking();
             createRenderResources();
             createPassthrough();
             createEnvironmentDepth();
@@ -277,6 +324,7 @@ private:
         enableOptionalExtension(XR_FB_SCENE_EXTENSION_NAME);
         enableOptionalExtension(XR_FB_SPATIAL_ENTITY_EXTENSION_NAME);
         enableOptionalExtension(XR_META_SPATIAL_ENTITY_MESH_EXTENSION_NAME);
+        enableOptionalExtension(XR_EXT_HAND_TRACKING_EXTENSION_NAME);
         enableOptionalExtension("XR_METAX1_passthrough_camera_data");
 
         std::cout << "\nEnabled OpenXR extensions:\n";
@@ -313,8 +361,12 @@ private:
         passthroughSystemProperties_.type = XR_TYPE_SYSTEM_PASSTHROUGH_PROPERTIES_FB;
         passthroughSystemProperties2_.type = XR_TYPE_SYSTEM_PASSTHROUGH_PROPERTIES2_FB;
         environmentDepthSystemProperties_.type = XR_TYPE_SYSTEM_ENVIRONMENT_DEPTH_PROPERTIES_META;
+        handTrackingSystemProperties_.type = XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT;
         passthroughSystemProperties_.next = &passthroughSystemProperties2_;
         passthroughSystemProperties2_.next = &environmentDepthSystemProperties_;
+        if (hasExtension(extensions_, XR_EXT_HAND_TRACKING_EXTENSION_NAME)) {
+            environmentDepthSystemProperties_.next = &handTrackingSystemProperties_;
+        }
 
         XrSystemProperties systemProperties{XR_TYPE_SYSTEM_PROPERTIES};
         systemProperties.next = &passthroughSystemProperties_;
@@ -328,6 +380,8 @@ private:
                   << (environmentDepthSystemProperties_.supportsEnvironmentDepth == XR_TRUE ? "yes" : "no")
                   << " handRemoval="
                   << (environmentDepthSystemProperties_.supportsHandRemoval == XR_TRUE ? "yes" : "no") << "\n";
+        std::cout << "Hand tracking supported: "
+                  << (handTrackingSystemProperties_.supportsHandTracking == XR_TRUE ? "yes" : "no") << "\n";
     }
 
     void requireExtension(const char* name) {
@@ -414,6 +468,45 @@ private:
         spaceCreateInfo.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
         spaceCreateInfo.poseInReferenceSpace.orientation.w = 1.0f;
         checkXr(xrCreateReferenceSpace(session_, &spaceCreateInfo, &appSpace_), "xrCreateReferenceSpace");
+    }
+
+    void createHandTracking() {
+        if (!hasExtension(extensions_, XR_EXT_HAND_TRACKING_EXTENSION_NAME) ||
+            handTrackingSystemProperties_.supportsHandTracking != XR_TRUE) {
+            std::cout << "Hand tracking: not reported as supported over this Link session.\n";
+            return;
+        }
+
+        xrCreateHandTrackerEXT_ =
+            loadXrFunction<PFN_xrCreateHandTrackerEXT>(instance_, "xrCreateHandTrackerEXT", true);
+        xrDestroyHandTrackerEXT_ =
+            loadXrFunction<PFN_xrDestroyHandTrackerEXT>(instance_, "xrDestroyHandTrackerEXT", true);
+        xrLocateHandJointsEXT_ =
+            loadXrFunction<PFN_xrLocateHandJointsEXT>(instance_, "xrLocateHandJointsEXT", true);
+
+        createHandTracker(0, XR_HAND_LEFT_EXT, "left");
+        createHandTracker(1, XR_HAND_RIGHT_EXT, "right");
+        handTrackingReady_ =
+            handTrackers_[0] != XR_NULL_HANDLE || handTrackers_[1] != XR_NULL_HANDLE;
+
+        std::cout << "Hand tracking trackers: "
+                  << (handTrackers_[0] != XR_NULL_HANDLE ? "left " : "")
+                  << (handTrackers_[1] != XR_NULL_HANDLE ? "right" : "")
+                  << (handTrackingReady_ ? "\n" : "none\n");
+    }
+
+    void createHandTracker(size_t index, XrHandEXT hand, const char* label) {
+        XrHandTrackerCreateInfoEXT createInfo{XR_TYPE_HAND_TRACKER_CREATE_INFO_EXT};
+        createInfo.hand = hand;
+        createInfo.handJointSet = XR_HAND_JOINT_SET_DEFAULT_EXT;
+
+        const XrResult result =
+            xrCreateHandTrackerEXT_(session_, &createInfo, &handTrackers_[index]);
+        if (XR_FAILED(result)) {
+            handTrackers_[index] = XR_NULL_HANDLE;
+            std::cout << "Hand tracking " << label << " tracker create: "
+                      << resultString(result) << "\n";
+        }
     }
 
     void createRenderResources() {
@@ -827,6 +920,7 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
                                   views_.data());
                 if (XR_SUCCEEDED(locateResult) && viewCount == views_.size()) {
                     acquireEnvironmentDepth(frameState.predictedDisplayTime);
+                    locateHands(frameState.predictedDisplayTime);
 
                     for (uint32_t eye = 0; eye < viewCount; ++eye) {
                         renderEye(eye);
@@ -872,6 +966,8 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
             if (frameIndex_ % 120 == 0) {
                 std::cout << "frames=" << frameIndex_
                           << " depthFrames=" << environmentDepthFrameCount_
+                          << " handFrames=" << handTrackingFrameCount_
+                          << " activeHands=" << activeHandCount_
                           << " lastDepth=" << resultString(lastEnvironmentDepthResult_)
                           << "\n";
             }
@@ -953,6 +1049,156 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
         }
     }
 
+    void locateHands(XrTime displayTime) {
+        activeHandCount_ = 0;
+        if (!handTrackingReady_ || !xrLocateHandJointsEXT_) {
+            return;
+        }
+
+        uint32_t activeHands = 0;
+        uint32_t validJoints = 0;
+        for (size_t hand = 0; hand < handTrackers_.size(); ++hand) {
+            handActive_[hand] = false;
+            handValidJointCounts_[hand] = 0;
+            if (handTrackers_[hand] == XR_NULL_HANDLE) {
+                continue;
+            }
+
+            XrHandJointsLocateInfoEXT locateInfo{XR_TYPE_HAND_JOINTS_LOCATE_INFO_EXT};
+            locateInfo.baseSpace = appSpace_;
+            locateInfo.time = displayTime;
+
+            XrHandJointLocationsEXT locations{XR_TYPE_HAND_JOINT_LOCATIONS_EXT};
+            locations.jointCount = XR_HAND_JOINT_COUNT_EXT;
+            locations.jointLocations = handJointLocations_[hand].data();
+
+            lastHandTrackingResults_[hand] =
+                xrLocateHandJointsEXT_(handTrackers_[hand], &locateInfo, &locations);
+            if (XR_FAILED(lastHandTrackingResults_[hand]) || locations.isActive != XR_TRUE) {
+                continue;
+            }
+
+            handActive_[hand] = true;
+            ++activeHands;
+            for (const auto& joint : handJointLocations_[hand]) {
+                if ((joint.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0) {
+                    ++handValidJointCounts_[hand];
+                    ++validJoints;
+                }
+            }
+        }
+
+        activeHandCount_ = activeHands;
+        if (activeHands > 0 && validJoints > 0) {
+            ++handTrackingFrameCount_;
+        }
+    }
+
+    bool projectPointToEye(uint32_t eye, XrVector3f point, Vec2& out) const {
+        const XrPosef& viewPose = views_[eye].pose;
+        const XrVector3f relative{
+            point.x - viewPose.position.x,
+            point.y - viewPose.position.y,
+            point.z - viewPose.position.z,
+        };
+        const XrVector3f eyePoint = rotateByInverse(viewPose.orientation, relative);
+        const float forward = -eyePoint.z;
+        if (forward <= 0.05f) {
+            return false;
+        }
+
+        const XrFovf& fov = views_[eye].fov;
+        const float tanLeft = std::tan(fov.angleLeft);
+        const float tanRight = std::tan(fov.angleRight);
+        const float tanDown = std::tan(fov.angleDown);
+        const float tanUp = std::tan(fov.angleUp);
+        const float tanX = eyePoint.x / forward;
+        const float tanY = eyePoint.y / forward;
+
+        out.x = 2.0f * ((tanX - tanLeft) / (tanRight - tanLeft)) - 1.0f;
+        out.y = 2.0f * ((tanY - tanDown) / (tanUp - tanDown)) - 1.0f;
+        return out.x >= -1.15f && out.x <= 1.15f && out.y >= -1.15f && out.y <= 1.15f;
+    }
+
+    void appendHandPreview(std::vector<Vertex>& vertices, uint32_t eye, size_t hand, Color color) const {
+        if (!handActive_[hand]) {
+            return;
+        }
+
+        struct Bone {
+            XrHandJointEXT a;
+            XrHandJointEXT b;
+        };
+        static constexpr std::array<Bone, 25> bones{{
+            {XR_HAND_JOINT_WRIST_EXT, XR_HAND_JOINT_PALM_EXT},
+            {XR_HAND_JOINT_PALM_EXT, XR_HAND_JOINT_THUMB_METACARPAL_EXT},
+            {XR_HAND_JOINT_THUMB_METACARPAL_EXT, XR_HAND_JOINT_THUMB_PROXIMAL_EXT},
+            {XR_HAND_JOINT_THUMB_PROXIMAL_EXT, XR_HAND_JOINT_THUMB_DISTAL_EXT},
+            {XR_HAND_JOINT_THUMB_DISTAL_EXT, XR_HAND_JOINT_THUMB_TIP_EXT},
+            {XR_HAND_JOINT_PALM_EXT, XR_HAND_JOINT_INDEX_METACARPAL_EXT},
+            {XR_HAND_JOINT_INDEX_METACARPAL_EXT, XR_HAND_JOINT_INDEX_PROXIMAL_EXT},
+            {XR_HAND_JOINT_INDEX_PROXIMAL_EXT, XR_HAND_JOINT_INDEX_INTERMEDIATE_EXT},
+            {XR_HAND_JOINT_INDEX_INTERMEDIATE_EXT, XR_HAND_JOINT_INDEX_DISTAL_EXT},
+            {XR_HAND_JOINT_INDEX_DISTAL_EXT, XR_HAND_JOINT_INDEX_TIP_EXT},
+            {XR_HAND_JOINT_PALM_EXT, XR_HAND_JOINT_MIDDLE_METACARPAL_EXT},
+            {XR_HAND_JOINT_MIDDLE_METACARPAL_EXT, XR_HAND_JOINT_MIDDLE_PROXIMAL_EXT},
+            {XR_HAND_JOINT_MIDDLE_PROXIMAL_EXT, XR_HAND_JOINT_MIDDLE_INTERMEDIATE_EXT},
+            {XR_HAND_JOINT_MIDDLE_INTERMEDIATE_EXT, XR_HAND_JOINT_MIDDLE_DISTAL_EXT},
+            {XR_HAND_JOINT_MIDDLE_DISTAL_EXT, XR_HAND_JOINT_MIDDLE_TIP_EXT},
+            {XR_HAND_JOINT_PALM_EXT, XR_HAND_JOINT_RING_METACARPAL_EXT},
+            {XR_HAND_JOINT_RING_METACARPAL_EXT, XR_HAND_JOINT_RING_PROXIMAL_EXT},
+            {XR_HAND_JOINT_RING_PROXIMAL_EXT, XR_HAND_JOINT_RING_INTERMEDIATE_EXT},
+            {XR_HAND_JOINT_RING_INTERMEDIATE_EXT, XR_HAND_JOINT_RING_DISTAL_EXT},
+            {XR_HAND_JOINT_RING_DISTAL_EXT, XR_HAND_JOINT_RING_TIP_EXT},
+            {XR_HAND_JOINT_PALM_EXT, XR_HAND_JOINT_LITTLE_METACARPAL_EXT},
+            {XR_HAND_JOINT_LITTLE_METACARPAL_EXT, XR_HAND_JOINT_LITTLE_PROXIMAL_EXT},
+            {XR_HAND_JOINT_LITTLE_PROXIMAL_EXT, XR_HAND_JOINT_LITTLE_INTERMEDIATE_EXT},
+            {XR_HAND_JOINT_LITTLE_INTERMEDIATE_EXT, XR_HAND_JOINT_LITTLE_DISTAL_EXT},
+            {XR_HAND_JOINT_LITTLE_DISTAL_EXT, XR_HAND_JOINT_LITTLE_TIP_EXT},
+        }};
+
+        auto jointIsValid = [this, hand](XrHandJointEXT joint) {
+            return (handJointLocations_[hand][joint].locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0;
+        };
+
+        for (const Bone& bone : bones) {
+            if (!jointIsValid(bone.a) || !jointIsValid(bone.b)) {
+                continue;
+            }
+
+            Vec2 a{};
+            Vec2 b{};
+            if (projectPointToEye(eye, handJointLocations_[hand][bone.a].pose.position, a) &&
+                projectPointToEye(eye, handJointLocations_[hand][bone.b].pose.position, b)) {
+                appendLine(vertices, a, b, 0.0045f, Color{color.r, color.g, color.b, 0.72f});
+            }
+        }
+
+        for (uint32_t joint = 0; joint < XR_HAND_JOINT_COUNT_EXT; ++joint) {
+            if (!jointIsValid(static_cast<XrHandJointEXT>(joint))) {
+                continue;
+            }
+
+            Vec2 p{};
+            if (!projectPointToEye(eye, handJointLocations_[hand][joint].pose.position, p)) {
+                continue;
+            }
+
+            const bool tip = joint == XR_HAND_JOINT_THUMB_TIP_EXT ||
+                             joint == XR_HAND_JOINT_INDEX_TIP_EXT ||
+                             joint == XR_HAND_JOINT_MIDDLE_TIP_EXT ||
+                             joint == XR_HAND_JOINT_RING_TIP_EXT ||
+                             joint == XR_HAND_JOINT_LITTLE_TIP_EXT;
+            const float halfSize = tip ? 0.013f : 0.008f;
+            appendRect(vertices,
+                       p.x - halfSize,
+                       p.y - halfSize,
+                       p.x + halfSize,
+                       p.y + halfSize,
+                       tip ? Color{1.0f, 1.0f, 1.0f, 0.90f} : color);
+        }
+    }
+
     void renderEye(uint32_t eye) {
         SwapchainBundle& swapchain = swapchains_[eye];
 
@@ -979,9 +1225,10 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
         context_->ClearRenderTargetView(rtv, transparent);
 
         std::vector<Vertex> vertices;
-        vertices.reserve(96);
+        vertices.reserve(1024);
 
         const bool depthLive = environmentDepthFrameCount_ > 0 && XR_SUCCEEDED(lastEnvironmentDepthResult_);
+        const bool handsLive = activeHandCount_ > 0 && handTrackingFrameCount_ > 0;
         const Color passthroughColor = passthroughReady_
             ? Color{0.0f, 0.78f, 1.0f, 0.78f}
             : Color{1.0f, 0.12f, 0.08f, 0.80f};
@@ -991,11 +1238,19 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
         const Color cameraColor = privateCameraSourceCount_ > 0
             ? Color{0.95f, 0.18f, 1.0f, 0.75f}
             : Color{0.55f, 0.55f, 0.55f, 0.55f};
+        const Color handStatusColor = handsLive
+            ? Color{1.0f, 0.86f, 0.18f, 0.88f}
+            : (handTrackingReady_
+                ? Color{1.0f, 0.48f, 0.08f, 0.78f}
+                : Color{0.45f, 0.45f, 0.45f, 0.55f});
+        const Color leftHandColor{0.12f, 0.98f, 0.82f, 0.86f};
+        const Color rightHandColor{1.0f, 0.72f, 0.12f, 0.86f};
 
         appendRect(vertices, -0.96f, 0.88f, 0.96f, 0.94f, passthroughColor);
         appendRect(vertices, -0.96f, -0.94f, 0.96f, -0.88f, passthroughColor);
         appendRect(vertices, -0.96f, -0.88f, -0.90f, 0.88f, depthColor);
         appendRect(vertices, 0.90f, -0.88f, 0.96f, 0.88f, cameraColor);
+        appendRect(vertices, -0.88f, 0.80f, 0.88f, 0.84f, handStatusColor);
 
         const auto elapsed =
             std::chrono::duration<float>(std::chrono::steady_clock::now() - startTime_).count();
@@ -1010,7 +1265,11 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
         appendRect(vertices, -0.26f, -0.72f, -0.10f, -0.67f, passthroughColor);
         appendRect(vertices, -0.06f, -0.72f, 0.10f, -0.67f, depthColor);
         appendRect(vertices, 0.14f, -0.72f, 0.30f, -0.67f, cameraColor);
+        appendRect(vertices, 0.34f, -0.72f, 0.50f, -0.67f, handStatusColor);
         appendRect(vertices, -0.02f - pulse * 0.18f, 0.64f, 0.02f + pulse * 0.18f, 0.69f, depthColor);
+
+        appendHandPreview(vertices, eye, 0, leftHandColor);
+        appendHandPreview(vertices, eye, 1, rightHandColor);
 
         D3D11_MAPPED_SUBRESOURCE mapped{};
         checkHr(context_->Map(vertexBuffer_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped), "Map(vertexBuffer)");
@@ -1039,6 +1298,14 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
             xrEndSession(session_);
             sessionRunning_ = false;
         }
+
+        for (auto& handTracker : handTrackers_) {
+            if (handTracker != XR_NULL_HANDLE && xrDestroyHandTrackerEXT_) {
+                xrDestroyHandTrackerEXT_(handTracker);
+                handTracker = XR_NULL_HANDLE;
+            }
+        }
+        handTrackingReady_ = false;
 
         if (environmentDepthProvider_ != XR_NULL_HANDLE && xrStopEnvironmentDepthProviderMETA_) {
             xrStopEnvironmentDepthProviderMETA_(environmentDepthProvider_);
@@ -1105,6 +1372,8 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
     XrSystemPassthroughProperties2FB passthroughSystemProperties2_{XR_TYPE_SYSTEM_PASSTHROUGH_PROPERTIES2_FB};
     XrSystemEnvironmentDepthPropertiesMETA environmentDepthSystemProperties_{
         XR_TYPE_SYSTEM_ENVIRONMENT_DEPTH_PROPERTIES_META};
+    XrSystemHandTrackingPropertiesEXT handTrackingSystemProperties_{
+        XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT};
 
     ComPtr<ID3D11Device> device_;
     ComPtr<ID3D11DeviceContext> context_;
@@ -1152,6 +1421,18 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
     XrResult lastEnvironmentDepthResult_{XR_SUCCESS};
     float lastEnvironmentDepthNearZ_{0.0f};
     float lastEnvironmentDepthFarZ_{0.0f};
+
+    PFN_xrCreateHandTrackerEXT xrCreateHandTrackerEXT_{nullptr};
+    PFN_xrDestroyHandTrackerEXT xrDestroyHandTrackerEXT_{nullptr};
+    PFN_xrLocateHandJointsEXT xrLocateHandJointsEXT_{nullptr};
+    std::array<XrHandTrackerEXT, 2> handTrackers_{XR_NULL_HANDLE, XR_NULL_HANDLE};
+    std::array<std::array<XrHandJointLocationEXT, XR_HAND_JOINT_COUNT_EXT>, 2> handJointLocations_{};
+    std::array<XrResult, 2> lastHandTrackingResults_{XR_SUCCESS, XR_SUCCESS};
+    std::array<uint32_t, 2> handValidJointCounts_{0, 0};
+    std::array<bool, 2> handActive_{false, false};
+    bool handTrackingReady_{false};
+    uint32_t activeHandCount_{0};
+    uint64_t handTrackingFrameCount_{0};
 
     uint32_t privateCameraSourceCount_{0};
     uint64_t frameIndex_{0};

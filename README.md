@@ -13,6 +13,7 @@ The first module is a lightweight Windows-native Quest Link MR live test. It avo
 - displays live passthrough through the public `XR_FB_passthrough` compositor layer,
 - renders a transparent GPU overlay over passthrough,
 - starts `XR_META_environment_depth` and acquires live spatial/depth frames,
+- starts `XR_EXT_hand_tracking` and renders a projected in-headset hand-joint preview,
 - performs a count-only private Link camera-source probe through `XR_METAX1_passthrough_camera_data`.
 
 Raw private camera frame acquisition is intentionally not attempted yet. The count-only probe confirms that Link exposes camera sources, but the private camera-frame ABI still needs to be mapped before reading frames safely.
@@ -45,6 +46,8 @@ The build script downloads the current Khronos OpenXR headers plus the OpenXR lo
 - Cyan frame: passthrough compositor layer is running.
 - Left green bar: environment-depth frames are being acquired.
 - Right magenta bar: private Link camera-source count returned at least one source.
+- Gold top/bottom bars: hand tracking is available; brighter gold means active hand joints are being acquired.
+- Cyan/orange joint markers: left/right hand skeleton preview projected into the headset overlay.
 
 ## Observed local baseline
 
@@ -56,6 +59,7 @@ Observed on the initial development machine with Quest Link active:
 - Passthrough: `XR_FB_passthrough`, running.
 - Spatial/depth: `XR_META_environment_depth`, `320x320`, 3 depth images.
 - Depth acquisition: `XR_SUCCESS`.
+- Hand tracking: `XR_EXT_hand_tracking`, left/right trackers active.
 - Private Link camera-source count: `2`.
 
 ## Research notes

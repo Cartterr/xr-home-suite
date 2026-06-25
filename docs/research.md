@@ -19,6 +19,7 @@ The current native test proves that the public compositor/depth path is viable o
 - `XR_FB_passthrough` can create and start a passthrough layer.
 - A D3D11-rendered transparent overlay can be submitted over the passthrough layer.
 - `XR_META_environment_depth` can create a depth provider and acquire live depth frames.
+- `XR_EXT_hand_tracking` can create left/right hand trackers and locate live hand joints.
 - The Oculus runtime can request a specific D3D11 adapter, and the app can create its device on that adapter.
 - Bounded test runs with `-Seconds` exit cleanly and avoid stale native processes.
 
@@ -29,6 +30,7 @@ Observed local baseline:
 - Eye swapchains: `2720x2976`, 3 images per eye.
 - Environment depth swapchain: `320x320`, 3 images.
 - Depth acquisition result: `XR_SUCCESS`.
+- Hand tracking: left/right trackers active with advancing hand-joint frames.
 
 ## Runtime Details That Matter
 
@@ -61,6 +63,7 @@ The first useful hub should use the proven public path:
 - spatial menu/launcher surface,
 - 3D preview panel,
 - frame/performance overlay,
+- in-world hand previews and hand-driven pointing,
 - environment-depth-driven occlusion or spatial effects.
 
 Private camera-frame work should remain a separate research track until the ABI is understood well enough to isolate crashes and validate memory layouts.
