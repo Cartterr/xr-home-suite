@@ -16,6 +16,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
@@ -25,7 +26,6 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
-#include <utility>
 #include <vector>
 
 namespace {
@@ -41,6 +41,14 @@ using PFN_xrEnumeratePassthroughCameraSourcePropertiesMETAX1 =
                          uint32_t cameraSourceCapacityInput,
                          uint32_t* cameraSourceCountOutput,
                          void* cameraSourceProperties);
+
+struct AppOptions {
+    int runSeconds{30};
+    bool enableEnvironmentDepth{true};
+    bool enableHandTracking{true};
+    int environmentDepthHz{30};
+    int handTrackingHz{30};
+};
 
 struct Vertex {
     float x;
@@ -272,7 +280,7 @@ XrVector3f rotateByInverse(const XrQuaternionf& q, XrVector3f v) {
 
 class LiveLinkApp {
 public:
-    explicit LiveLinkApp(int runSeconds) : runSeconds_(runSeconds) {}
+    explicit LiveLinkApp(AppOptions options) : options_(options) {}
 
     int run() {
         try {
@@ -280,10 +288,18 @@ public:
             initializeD3D11();
             createSession();
             createAppSpace();
-            createHandTracking();
+            if (options_.enableHandTracking) {
+                createHandTracking();
+            } else {
+                std::cout << "Hand tracking: disabled by command line.\n";
+            }
             createRenderResources();
             createPassthrough();
-            createEnvironmentDepth();
+            if (options_.enableEnvironmentDepth) {
+                createEnvironmentDepth();
+            } else {
+                std::cout << "Environment depth/spatial data: disabled by command line.\n";
+            }
             probePrivateCameraSources();
             mainLoop();
             cleanup();
@@ -875,8 +891,13 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
 
     void mainLoop() {
         startTime_ = std::chrono::steady_clock::now();
-        std::cout << "\nPut the headset in Quest Link now. Running for " << runSeconds_
+        std::cout << "\nPut the headset in Quest Link now. Running for " << options_.runSeconds
                   << "s. You should see live passthrough with a GPU-rendered overlay.\n";
+        std::cout << "Sensor polling caps: depth="
+                  << (options_.enableEnvironmentDepth ? std::to_string(options_.environmentDepthHz) + " Hz" : "off")
+                  << " hands="
+                  << (options_.enableHandTracking ? std::to_string(options_.handTrackingHz) + " Hz" : "off")
+                  << "\n";
 
         while (!exitRequested_) {
             pollEvents();
@@ -885,7 +906,7 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
                 std::chrono::duration_cast<std::chrono::seconds>(
                     std::chrono::steady_clock::now() - startTime_)
                     .count();
-            if (elapsedSeconds >= runSeconds_) {
+            if (elapsedSeconds >= options_.runSeconds) {
                 exitRequested_ = true;
             }
 
@@ -919,8 +940,16 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
                                   &viewCount,
                                   views_.data());
                 if (XR_SUCCEEDED(locateResult) && viewCount == views_.size()) {
-                    acquireEnvironmentDepth(frameState.predictedDisplayTime);
-                    locateHands(frameState.predictedDisplayTime);
+                    if (shouldPollSensor(frameState.predictedDisplayTime,
+                                         lastEnvironmentDepthPollTime_,
+                                         options_.environmentDepthHz)) {
+                        acquireEnvironmentDepth(frameState.predictedDisplayTime);
+                    }
+                    if (shouldPollSensor(frameState.predictedDisplayTime,
+                                         lastHandTrackingPollTime_,
+                                         options_.handTrackingHz)) {
+                        locateHands(frameState.predictedDisplayTime);
+                    }
 
                     for (uint32_t eye = 0; eye < viewCount; ++eye) {
                         renderEye(eye);
@@ -1021,6 +1050,19 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
         } else if (state == XR_SESSION_STATE_EXITING || state == XR_SESSION_STATE_LOSS_PENDING) {
             exitRequested_ = true;
         }
+    }
+
+    bool shouldPollSensor(XrTime displayTime, XrTime& lastPollTime, int hz) {
+        if (hz <= 0) {
+            return false;
+        }
+        constexpr XrTime kNanosecondsPerSecond = 1000000000;
+        const XrTime interval = kNanosecondsPerSecond / hz;
+        if (lastPollTime == 0 || displayTime - lastPollTime >= interval) {
+            lastPollTime = displayTime;
+            return true;
+        }
+        return false;
     }
 
     void acquireEnvironmentDepth(XrTime displayTime) {
@@ -1436,23 +1478,42 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
 
     uint32_t privateCameraSourceCount_{0};
     uint64_t frameIndex_{0};
-    int runSeconds_{30};
+    AppOptions options_{};
+    XrTime lastEnvironmentDepthPollTime_{0};
+    XrTime lastHandTrackingPollTime_{0};
     std::chrono::steady_clock::time_point startTime_{};
 };
 
-int parseRunSeconds(int argc, char** argv) {
-    int seconds = 30;
+int parsePositiveInt(const char* value, int fallback) {
+    const int parsed = std::atoi(value);
+    return parsed > 0 ? parsed : fallback;
+}
+
+AppOptions parseOptions(int argc, char** argv) {
+    AppOptions options{};
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--seconds") == 0 && i + 1 < argc) {
-            seconds = std::max(1, std::atoi(argv[++i]));
+            options.runSeconds = parsePositiveInt(argv[++i], options.runSeconds);
+        } else if (std::strcmp(argv[i], "--no-depth") == 0) {
+            options.enableEnvironmentDepth = false;
+            options.environmentDepthHz = 0;
+        } else if (std::strcmp(argv[i], "--no-hands") == 0) {
+            options.enableHandTracking = false;
+            options.handTrackingHz = 0;
+        } else if (std::strcmp(argv[i], "--depth-hz") == 0 && i + 1 < argc) {
+            options.environmentDepthHz = parsePositiveInt(argv[++i], options.environmentDepthHz);
+            options.enableEnvironmentDepth = true;
+        } else if (std::strcmp(argv[i], "--hand-hz") == 0 && i + 1 < argc) {
+            options.handTrackingHz = parsePositiveInt(argv[++i], options.handTrackingHz);
+            options.enableHandTracking = true;
         }
     }
-    return seconds;
+    return options;
 }
 
 }  // namespace
 
 int main(int argc, char** argv) {
-    LiveLinkApp app(parseRunSeconds(argc, argv));
+    LiveLinkApp app(parseOptions(argc, argv));
     return app.run();
 }

@@ -41,6 +41,16 @@ powershell -ExecutionPolicy Bypass -File .\build-native.ps1 -Run -Seconds 30
 
 The build script downloads the current Khronos OpenXR headers plus the OpenXR loader NuGet package into `third_party/`, then compiles a native x64 D3D11 executable into `build/`.
 
+The app renders through native D3D11/OpenXR, but Meta Link passthrough, environment depth, and hand tracking still involve runtime services and CPU-side API calls. Depth and hand polling are capped to 30 Hz by default so the test does not query sensors at full headset refresh rate.
+
+Useful isolation flags:
+
+```powershell
+.\build\xr_home_suite_link_mr.exe --seconds 30 --no-depth --no-hands
+.\build\xr_home_suite_link_mr.exe --seconds 30 --no-depth
+.\build\xr_home_suite_link_mr.exe --seconds 30 --hand-hz 15 --depth-hz 15
+```
+
 ## In-headset signals
 
 - Cyan frame: passthrough compositor layer is running.
