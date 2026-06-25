@@ -51,6 +51,8 @@ Useful isolation flags:
 .\build\xr_home_suite_link_mr.exe --seconds 30 --hand-hz 15 --depth-hz 15
 ```
 
+Pressing `Ctrl+C` in the native app requests a graceful OpenXR shutdown. The app finishes any in-flight frame, pauses/destroys passthrough, stops depth, destroys hand trackers, and then destroys the OpenXR session/instance instead of letting Windows terminate the process mid-frame.
+
 ## In-headset signals
 
 - Cyan frame: passthrough compositor layer is running.

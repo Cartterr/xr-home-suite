@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -35,6 +36,22 @@ using Microsoft::WRL::ComPtr;
 constexpr XrFormFactor kFormFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
 constexpr XrViewConfigurationType kViewConfig = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
 constexpr float kPi = 3.14159265358979323846f;
+
+std::atomic_bool gShutdownRequested{false};
+
+BOOL WINAPI consoleCtrlHandler(DWORD controlType) {
+    switch (controlType) {
+        case CTRL_C_EVENT:
+        case CTRL_BREAK_EVENT:
+        case CTRL_CLOSE_EVENT:
+        case CTRL_LOGOFF_EVENT:
+        case CTRL_SHUTDOWN_EVENT:
+            gShutdownRequested.store(true, std::memory_order_relaxed);
+            return TRUE;
+        default:
+            return FALSE;
+    }
+}
 
 using PFN_xrEnumeratePassthroughCameraSourcePropertiesMETAX1 =
     XrResult(XRAPI_PTR*)(XrSession session,
@@ -284,6 +301,7 @@ public:
 
     int run() {
         try {
+            installConsoleCtrlHandler();
             initializeOpenXr();
             initializeD3D11();
             createSession();
@@ -303,15 +321,46 @@ public:
             probePrivateCameraSources();
             mainLoop();
             cleanup();
+            std::cout << "OpenXR shutdown complete.\n";
+            uninstallConsoleCtrlHandler();
             return 0;
         } catch (const std::exception& error) {
             std::cerr << "Fatal: " << error.what() << "\n";
             cleanup();
+            uninstallConsoleCtrlHandler();
             return 1;
         }
     }
 
 private:
+    void installConsoleCtrlHandler() {
+        gShutdownRequested.store(false, std::memory_order_relaxed);
+        if (!SetConsoleCtrlHandler(consoleCtrlHandler, TRUE)) {
+            std::cout << "Warning: failed to install Ctrl+C shutdown handler.\n";
+            return;
+        }
+        consoleCtrlHandlerInstalled_ = true;
+    }
+
+    void uninstallConsoleCtrlHandler() {
+        if (consoleCtrlHandlerInstalled_) {
+            SetConsoleCtrlHandler(consoleCtrlHandler, FALSE);
+            consoleCtrlHandlerInstalled_ = false;
+        }
+    }
+
+    void observeShutdownRequest() {
+        if (!gShutdownRequested.load(std::memory_order_relaxed)) {
+            return;
+        }
+
+        exitRequested_ = true;
+        if (!shutdownNoticePrinted_) {
+            std::cout << "\nCtrl+C received. Finishing the current OpenXR frame and shutting down cleanly.\n";
+            shutdownNoticePrinted_ = true;
+        }
+    }
+
     void initializeOpenXr() {
         uint32_t extensionCount = 0;
         checkXr(xrEnumerateInstanceExtensionProperties(nullptr, 0, &extensionCount, nullptr),
@@ -900,7 +949,15 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
                   << "\n";
 
         while (!exitRequested_) {
+            observeShutdownRequest();
+            if (exitRequested_) {
+                break;
+            }
             pollEvents();
+            observeShutdownRequest();
+            if (exitRequested_) {
+                break;
+            }
 
             const auto elapsedSeconds =
                 std::chrono::duration_cast<std::chrono::seconds>(
@@ -911,6 +968,10 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
             }
 
             if (!sessionRunning_) {
+                observeShutdownRequest();
+                if (exitRequested_) {
+                    break;
+                }
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 continue;
             }
@@ -918,13 +979,14 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
             XrFrameState frameState{XR_TYPE_FRAME_STATE};
             checkXr(xrWaitFrame(session_, nullptr, &frameState), "xrWaitFrame");
             checkXr(xrBeginFrame(session_, nullptr), "xrBeginFrame");
+            observeShutdownRequest();
 
             std::vector<const XrCompositionLayerBaseHeader*> layers;
             XrCompositionLayerPassthroughFB passthroughLayerInfo{
                 XR_TYPE_COMPOSITION_LAYER_PASSTHROUGH_FB};
             XrCompositionLayerProjection projectionLayer{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
 
-            if (frameState.shouldRender == XR_TRUE) {
+            if (!exitRequested_ && frameState.shouldRender == XR_TRUE) {
                 XrViewLocateInfo viewLocateInfo{XR_TYPE_VIEW_LOCATE_INFO};
                 viewLocateInfo.viewConfigurationType = kViewConfig;
                 viewLocateInfo.displayTime = frameState.predictedDisplayTime;
@@ -1409,6 +1471,8 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
     XrSessionState sessionState_{XR_SESSION_STATE_UNKNOWN};
     bool sessionRunning_{false};
     bool exitRequested_{false};
+    bool consoleCtrlHandlerInstalled_{false};
+    bool shutdownNoticePrinted_{false};
 
     XrSystemPassthroughPropertiesFB passthroughSystemProperties_{XR_TYPE_SYSTEM_PASSTHROUGH_PROPERTIES_FB};
     XrSystemPassthroughProperties2FB passthroughSystemProperties2_{XR_TYPE_SYSTEM_PASSTHROUGH_PROPERTIES2_FB};
