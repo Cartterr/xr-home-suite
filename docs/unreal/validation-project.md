@@ -1,6 +1,6 @@
 # First Unreal Validation Project
 
-Create this project only after `python -m xrhs unreal-doctor` passes source access and finds or installs an engine under `C:\XRHomeSuite\engines`.
+Create this project only after `python -m xrhs unreal-doctor` passes source access, finds the engine under `C:\XRHomeSuite\engines`, the editor binary exists, and Meta XR / Horizon Integration SDK `201.0` is installed or staged.
 
 ## Purpose
 
@@ -11,6 +11,7 @@ This is not the full XR Home Suite product. It is the smallest Unreal scene that
 Preferred first path:
 
 - UE `5.7.4`
+- Stock Epic source install first: `C:\XRHomeSuite\engines\UE_5.7.4`
 - Meta XR / Horizon Integration SDK `201.0`
 - Windows PC-VR over Meta Horizon Link
 - D3D12 + SM6
@@ -22,6 +23,12 @@ Experimental RTX path after the comfort path is stable:
 - NVIDIA Reflex
 - NvRTX branch only after stock/Meta path is validated
 
+Source validation order:
+
+- Stock Epic `5.7.4-release` first because it matches Meta XR / Horizon Integration SDK `201.0`.
+- Meta `oculus-5.7` fork second to compare Meta-specific fixes/features against the stock plugin path.
+- NvRTX `nvrtx-5.7.4.0` third as an RTX experiment, not as the default comfort path.
+
 ## Project Location
 
 - Engine installs/clones: `C:\XRHomeSuite\engines`
@@ -32,6 +39,14 @@ Experimental RTX path after the comfort path is stable:
   - `DerivedDataCache`
   - `Intermediate`
   - `Saved`
+
+## Current Bootstrap State
+
+- Source access is available for EpicGames, Oculus-VR, and NvRTX remotes.
+- Stock UE `5.7.4-release` source is cloned under `C:\XRHomeSuite\engines\UE_5.7.4`.
+- Dependencies are synced outside the repo with cache under `C:\XRHomeSuite\cache`.
+- `UE5.sln` and UnrealBuildTool are generated.
+- The validation project waits for `Engine\Binaries\Win64\UnrealEditor.exe` plus the Meta plugin path.
 
 ## Required Scene
 

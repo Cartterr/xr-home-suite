@@ -52,6 +52,21 @@ def check_git_remote(remote: str) -> bool:
     return result.returncode == 0
 
 
+def print_engine_markers(path: Path) -> None:
+    markers = [
+        ("source tree", path / "Engine" / "Source" / "Runtime"),
+        ("generated solution", path / "UE5.sln"),
+        (
+            "UnrealBuildTool",
+            path / "Engine" / "Binaries" / "DotNET" / "UnrealBuildTool" / "UnrealBuildTool.dll",
+        ),
+        ("UnrealEditor executable", path / "Engine" / "Binaries" / "Win64" / "UnrealEditor.exe"),
+    ]
+    for label, marker in markers:
+        ok = marker.exists()
+        print(f"  {'READY' if ok else 'PENDING'}: {label} - {marker}")
+
+
 def run_doctor() -> int:
     ensure_external_layout()
     checks: list[tuple[str, bool, str]] = []
@@ -107,6 +122,7 @@ def run_unreal_doctor() -> int:
     if found:
         for path in found:
             print(f"FOUND: {path}")
+            print_engine_markers(path)
     else:
         print(f"No UE {TARGET_UNREAL_VERSION} installation found.")
 
@@ -133,5 +149,8 @@ def run_unreal_doctor() -> int:
         print("Validation commands after account linking:")
         for label, remote, _ in UNREAL_SOURCE_REMOTES:
             print(f"  git ls-remote {remote} HEAD  # {label}")
+    else:
+        print("")
+        print("Source access gate: passed for EpicGames, Meta/Oculus, and NVIDIA NvRTX remotes.")
 
     return 1 if blocked or not found else 0
