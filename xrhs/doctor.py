@@ -7,6 +7,28 @@ from pathlib import Path
 from .paths import ensure_external_layout, external_home
 
 
+TARGET_UNREAL_VERSION = "5.7.4"
+TARGET_META_INTEGRATION_VERSION = "201.0"
+
+UNREAL_SOURCE_REMOTES = [
+    (
+        "EpicGames Unreal source",
+        "https://github.com/EpicGames/UnrealEngine.git",
+        "https://www.unrealengine.com/ue-on-github",
+    ),
+    (
+        "Meta/Oculus Unreal fork",
+        "https://github.com/Oculus-VR/UnrealEngine.git",
+        "https://developers.meta.com/horizon/downloads/package/unreal-engine-5-integration/",
+    ),
+    (
+        "NVIDIA NvRTX Unreal branch",
+        "https://github.com/NvRTX/UnrealEngine.git",
+        "https://developer.nvidia.com/game-engines/unreal-engine/rtx-branch",
+    ),
+]
+
+
 def command_exists(name: str) -> bool:
     return shutil.which(name) is not None
 
@@ -23,6 +45,11 @@ def run_checked(args: list[str]) -> tuple[bool, str]:
 def print_status(label: str, ok: bool, detail: str = "") -> None:
     prefix = "OK" if ok else "MISSING"
     print(f"{prefix}: {label}{' - ' + detail if detail else ''}")
+
+
+def check_git_remote(remote: str) -> bool:
+    result = subprocess.run(["git", "ls-remote", remote, "HEAD"], text=True, capture_output=True, timeout=30)
+    return result.returncode == 0
 
 
 def run_doctor() -> int:
@@ -55,32 +82,56 @@ def run_doctor() -> int:
 def run_unreal_doctor() -> int:
     ensure_external_layout()
     engine_root = external_home() / "engines"
+    print("Target Unreal validation stack:")
+    print(f"  UE {TARGET_UNREAL_VERSION}")
+    print(f"  Meta XR / Horizon Integration SDK {TARGET_META_INTEGRATION_VERSION}")
+    print("  D3D12 + SM6, Forward Renderer + MSAA comfort path")
+    print("  DLSS/DLAA/Reflex validation path after base Link scene is stable")
+    print("")
     print(f"Engine root: {engine_root}")
+
+    ok, github_user = run_checked(["gh", "api", "user", "--jq", ".login"])
+    if ok:
+        print(f"GitHub user: {github_user}")
+    else:
+        print("GitHub user: unavailable through gh. Run: gh auth status")
+
     candidates = [
-        engine_root / "UE_5.7.4",
-        engine_root / "Oculus-VR-UnrealEngine-5.7.4",
-        engine_root / "NvRTX-UnrealEngine-5.7.4",
+        engine_root / f"UE_{TARGET_UNREAL_VERSION}",
+        engine_root / f"Oculus-VR-UnrealEngine-{TARGET_UNREAL_VERSION}",
+        engine_root / f"NvRTX-UnrealEngine-{TARGET_UNREAL_VERSION}",
         Path("C:/Program Files/Epic Games/UE_5.7"),
-        Path("C:/Program Files/Epic Games/UE_5.7.4"),
+        Path(f"C:/Program Files/Epic Games/UE_{TARGET_UNREAL_VERSION}"),
     ]
     found = [path for path in candidates if path.exists()]
     if found:
         for path in found:
             print(f"FOUND: {path}")
     else:
-        print("No UE 5.7.x installation found.")
+        print(f"No UE {TARGET_UNREAL_VERSION} installation found.")
 
-    remotes = [
-        "https://github.com/Oculus-VR/UnrealEngine.git",
-        "https://github.com/NvRTX/UnrealEngine.git",
-    ]
-    failed = False
-    for remote in remotes:
-        result = subprocess.run(["git", "ls-remote", remote, "HEAD"], text=True, capture_output=True, timeout=30)
-        if result.returncode == 0:
-            print(f"ACCESS OK: {remote}")
+    blocked: list[tuple[str, str, str]] = []
+    for label, remote, guide_url in UNREAL_SOURCE_REMOTES:
+        if check_git_remote(remote):
+            print(f"ACCESS OK: {label} - {remote}")
         else:
-            failed = True
-            print(f"ACCESS BLOCKED: {remote}")
-            print("  Link the required Epic/Meta/NVIDIA GitHub access before engine bootstrap.")
-    return 1 if failed and not found else 0
+            blocked.append((label, remote, guide_url))
+            print(f"ACCESS BLOCKED: {label} - {remote}")
+
+    if blocked:
+        print("")
+        print("Next required manual access steps:")
+        print("  1. Link the Epic/Unreal account to this GitHub account and accept the @EpicGames invite.")
+        print("  2. Confirm Epic source access works before attempting Meta or NvRTX engine bootstrap.")
+        print("  3. Confirm Meta/Oculus fork access for the Meta engine path.")
+        print("  4. Confirm NVIDIA NvRTX access for the experimental RTX branch.")
+        print("")
+        print("Official access links:")
+        for label, _, guide_url in blocked:
+            print(f"  {label}: {guide_url}")
+        print("")
+        print("Validation commands after account linking:")
+        for label, remote, _ in UNREAL_SOURCE_REMOTES:
+            print(f"  git ls-remote {remote} HEAD  # {label}")
+
+    return 1 if blocked or not found else 0

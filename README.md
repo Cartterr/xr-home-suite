@@ -102,6 +102,8 @@ Observed on the initial development machine with Quest Link active:
 ## Research notes
 
 See [`docs/research.md`](docs/research.md) for the current extension findings, runtime constraints, private camera-extension boundary, and safe next implementation track.
+See [`docs/unreal/engine-gate.md`](docs/unreal/engine-gate.md) for the Unreal source-access gate.
+See [`docs/unreal/validation-project.md`](docs/unreal/validation-project.md) for the first engine validation scene.
 
 ## Useful Meta docs
 
