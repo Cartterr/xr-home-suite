@@ -1,0 +1,9 @@
+build/
+third_party/
+.vs/
+*.obj
+*.pdb
+*.ilk
+*.user
+*.log
+*.tmp
