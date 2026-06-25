@@ -53,13 +53,17 @@ Existing repo and prototype context:
 - Current graphics path: D3D11 via XR_KHR_D3D11_enable.
 - Current build intentionally avoids Java, Gradle, Unity, Android Studio, APK deploy loops, and any Android-only app path for the PC-hosted test.
 - Reason: earlier Java/managed/editor paths felt laggy; the desired product should not be CPU-bound or dependent on slow build/deploy loops.
-- Current prototype module: src/live_link_app.cpp.
-- Current build script downloads Khronos OpenXR headers and OpenXR loader NuGet package into third_party, then compiles a native x64 D3D11 executable into build.
+- Current prototype entrypoint: apps/openxr_probe.
+- Current native code is split across libs/xrh_core, libs/xrh_openxr, libs/xrh_d3d11, libs/xrh_meta, and apps/openxr_probe.
+- Current orchestration uses Python + CMake presets. Heavy dependencies and build output live outside the repo under XRHS_HOME, defaulting to C:\XRHomeSuite.
 - Current run flags:
-  - build: powershell -ExecutionPolicy Bypass -File .\build-native.ps1 -Run -Seconds 30
-  - render-only lag isolation: .\build\xr_home_suite_link_mr.exe --seconds 60 --no-depth --no-hands
-  - hands only: .\build\xr_home_suite_link_mr.exe --seconds 60 --no-depth --hand-hz 15
-  - conservative hands + depth: .\build\xr_home_suite_link_mr.exe --seconds 60 --depth-hz 15 --hand-hz 15
+  - sync dependencies: python -m xrhs deps sync
+  - configure: python -m xrhs configure --preset native-vs-debug
+  - build: python -m xrhs build --preset native-vs-debug
+  - render-only lag isolation: python -m xrhs run-probe -- --seconds 60 --no-depth --no-hands
+  - hands only: python -m xrhs run-probe -- --seconds 60 --no-depth --hand-hz 15
+  - conservative hands + depth: python -m xrhs run-probe -- --seconds 60 --depth-hz 15 --hand-hz 15
+  - optional JSON report: python -m xrhs run-probe -- --seconds 5 --no-depth --no-hands --report C:\XRHomeSuite\artifacts\reports\render-only.json
 - Current prototype has graceful Ctrl+C shutdown:
   - Windows console Ctrl+C requests a clean OpenXR shutdown.
   - It avoids abrupt process termination mid-frame.

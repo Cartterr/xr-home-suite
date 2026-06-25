@@ -1,0 +1,70 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "native-vs-debug",
+      "displayName": "Native VS Debug",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "C:/XRHomeSuite/build/xr-home-suite/native-vs-debug",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug",
+        "XRHS_HOME": "C:/XRHomeSuite"
+      }
+    },
+    {
+      "name": "native-vs-release",
+      "displayName": "Native VS Release",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "C:/XRHomeSuite/build/xr-home-suite/native-vs-release",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Release",
+        "XRHS_HOME": "C:/XRHomeSuite"
+      }
+    },
+    {
+      "name": "native-vs-relwithdebinfo",
+      "displayName": "Native VS RelWithDebInfo",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "C:/XRHomeSuite/build/xr-home-suite/native-vs-relwithdebinfo",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "RelWithDebInfo",
+        "XRHS_HOME": "C:/XRHomeSuite"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "native-vs-debug",
+      "configurePreset": "native-vs-debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "native-vs-release",
+      "configurePreset": "native-vs-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "native-vs-relwithdebinfo",
+      "configurePreset": "native-vs-relwithdebinfo",
+      "configuration": "RelWithDebInfo"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "native-vs-debug",
+      "configurePreset": "native-vs-debug",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

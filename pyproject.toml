@@ -1,0 +1,8 @@
+[project]
+name = "xr-home-suite-tools"
+version = "0.1.0"
+description = "Repository tooling for XR Home Suite."
+requires-python = ">=3.11"
+
+[tool.xr-home-suite]
+external-home = "C:/XRHomeSuite"

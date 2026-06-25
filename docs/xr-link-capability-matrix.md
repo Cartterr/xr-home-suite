@@ -1,6 +1,6 @@
 # XR Link Capability Matrix
 
-This note tracks the Meta Horizon Link developer toggles that are currently enabled on the test machine and the OpenXR/native-PC capabilities we can safely use from `src/live_link_app.cpp`.
+This note tracks the Meta Horizon Link developer toggles that are currently enabled on the test machine and the OpenXR/native-PC capabilities we can safely use from `apps/openxr_probe`.
 
 ## Why Passthrough Is Split
 
@@ -161,9 +161,9 @@ Native Windows/OpenXR status in this repo:
 
 - Default test: keep depth/hands capped at `30 Hz`.
 - Lag isolation:
-  - render + passthrough only: `.\build\xr_home_suite_link_mr.exe --seconds 60 --no-depth --no-hands`
-  - hands only: `.\build\xr_home_suite_link_mr.exe --seconds 60 --no-depth --hand-hz 15`
-  - depth + hands conservative: `.\build\xr_home_suite_link_mr.exe --seconds 60 --depth-hz 15 --hand-hz 15`
+  - render + passthrough only: `python -m xrhs run-probe -- --seconds 60 --no-depth --no-hands`
+  - hands only: `python -m xrhs run-probe -- --seconds 60 --no-depth --hand-hz 15`
+  - depth + hands conservative: `python -m xrhs run-probe -- --seconds 60 --depth-hz 15 --hand-hz 15`
 - Do not assume raw camera access is available in native Windows OpenXR until `XR_METAX1_passthrough_camera_data` is mapped safely.
 - Do not treat passthrough compositor quality as app-controlled camera quality.
 - For actual CV/ML camera input today, use public PCA paths first unless native ABI research is the explicit goal.
@@ -179,4 +179,4 @@ Native Windows/OpenXR status in this repo:
 - Meta native hand tracking: https://developers.meta.com/horizon/documentation/native/android/mobile-hand-tracking/
 - Meta native scene overview: https://developers.meta.com/horizon/documentation/native/android/openxr-scene-overview/
 - Meta scene API reference: https://developers.meta.com/horizon/documentation/native/android/mobile-scene-api-ref/
-- Khronos OpenXR headers used locally: `third_party/openxr_current/include/openxr/openxr.h`
+- Khronos OpenXR headers used locally after dependency sync: `C:\XRHomeSuite\deps\openxr\include\openxr\openxr.h`
