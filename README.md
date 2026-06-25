@@ -58,6 +58,10 @@ Observed on the initial development machine with Quest Link active:
 - Depth acquisition: `XR_SUCCESS`.
 - Private Link camera-source count: `2`.
 
+## Research notes
+
+See [`docs/research.md`](docs/research.md) for the current extension findings, runtime constraints, private camera-extension boundary, and safe next implementation track.
+
 ## Useful Meta docs
 
 - [Passthrough](https://developers.meta.com/horizon/documentation/native/android/mobile-passthrough/)
