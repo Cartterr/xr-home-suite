@@ -11,7 +11,7 @@ XR Home Suite will use a hybrid repository strategy:
 - Native C++ OpenXR/D3D11 diagnostic probe now.
 - Unreal Engine 5.7.4 + Meta XR Integration 201 / Meta fork validation for the future product shell.
 - D3D12/SM6, Forward Shading, MSAA, passthrough underlay, and comfort-first profiling for the first Unreal build.
-- NvRTX, DLSS, Reflex, and ray tracing stay in isolated experiment branches until validated in PCVR/OpenXR.
+- DLSS/Streamline tooling may be installed in the external engine for RTX validation, but DLSS, Reflex experiments, NvRTX, and ray tracing stay opt-in until validated in PCVR/OpenXR.
 
 ## Rationale
 

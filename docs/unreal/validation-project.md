@@ -52,8 +52,29 @@ Source validation order:
 - `Engine\Binaries\Win64\UnrealEditor.exe` is built.
 - `Engine\Binaries\Win64\ShaderCompileWorker.exe` is built.
 - Meta XR / Horizon Integration SDK `201.0` is installed under `Engine\Plugins\Marketplace\MetaXR`.
+- Meta Interaction SDK for Unreal `201.0` is installed under `Engine\Plugins\Marketplace\MetaXRInteraction`.
+- Meta Movement SDK modules are present through `MetaXR\Source\OculusXRMovement`.
+- NVIDIA DLSS/Streamline UE `5.7` plugins are installed under `Engine\Plugins\Marketplace` for later opt-in RTX validation.
 - `XRHSValidationEditor` builds successfully through UnrealBuildTool.
 - The project shell and C++ modules use `XRHSValidation` because Unreal warns when a project filename exceeds 20 characters and several editor code-generation paths assume the project name is also the primary game module.
+
+## External Tooling
+
+Run this after machine setup changes:
+
+`python -m xrhs tools-doctor`
+
+Expected local tools are external to the repo:
+
+- Meta Quest Developer Hub: `C:\Program Files\Meta Quest Developer Hub`
+- Meta XR Simulator payload: `C:\XRHomeSuite\tools\MetaXRSimulator\v201.0`
+- RenderDoc: `C:\Program Files\RenderDoc`
+- Microsoft PIX: `C:\Program Files\Microsoft PIX\2603.25`
+- OpenXR Explorer: `C:\XRHomeSuite\tools\OpenXR-Explorer-v1.7`
+- Khronos OpenXR SDK API layers: `C:\XRHomeSuite\tools\OpenXR-SDK-Source`
+- NVIDIA Nsight Graphics portable host: `C:\XRHomeSuite\tools\NVIDIA_Nsight_Graphics_2026.2_Portable`
+
+Do not activate Meta XR Simulator as the system OpenXR runtime while Meta Horizon Link validation is active; its activation script writes `HKLM\SOFTWARE\Khronos\OpenXR\1\ActiveRuntime`.
 
 ## Commands
 
@@ -122,7 +143,7 @@ The first scene should include:
 Current implementation status:
 
 - The scene is source-only and creates a validation grid at runtime.
-- The project enables `OculusXR`, `OpenXR`, `OpenXRHandTracking`, `XRBase`, and `EnhancedInput`.
+- The project enables `OculusXR`, `OpenXR`, `OpenXRHandTracking`, `XRBase`, `EnhancedInput`, and `OculusInteraction`.
 - The project disables `XGEController` so machines without Incredibuild do not log XGE shader compile warnings.
 - The product renderer defaults to D3D12, SM6, Forward Renderer, instanced stereo, and MSAA.
 - The Link passthrough validation path defaults the editor preview platform to Android Vulkan Mobile with the `Android_OpenXR` device profile.

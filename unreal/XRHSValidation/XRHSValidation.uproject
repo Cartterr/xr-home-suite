@@ -37,6 +37,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "OculusInteraction",
+			"Enabled": true
+		},
+		{
 			"Name": "XGEController",
 			"Enabled": false
 		}

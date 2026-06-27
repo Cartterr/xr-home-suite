@@ -121,6 +121,25 @@ def has_target_meta_plugin(markers: list[tuple[Path, str]]) -> bool:
     return any(TARGET_META_INTEGRATION_VERSION in version for _, version in markers)
 
 
+def uplugin_detail(path: Path) -> str:
+    if not path.exists():
+        return str(path)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return str(path)
+    version = data.get("VersionName") or data.get("Version")
+    return f"{version} - {path}" if version else str(path)
+
+
+def files_ready(paths: list[Path]) -> bool:
+    return all(path.exists() for path in paths)
+
+
+def first_line(value: str) -> str:
+    return value.splitlines()[0] if value else ""
+
+
 def print_meta_plugin_markers(path: Path) -> bool:
     markers = find_meta_plugin_markers(path)
     if not markers:
@@ -157,6 +176,79 @@ def run_doctor() -> int:
     for label, ok, detail in checks:
         print_status(label, ok, detail)
         failed = failed or not ok
+    return 1 if failed else 0
+
+
+def run_tools_doctor() -> int:
+    ensure_external_layout()
+    home = external_home()
+    engine = home / "engines" / f"UE_{TARGET_UNREAL_VERSION}"
+    marketplace = engine / "Engine" / "Plugins" / "Marketplace"
+    tools = home / "tools"
+
+    meta_xr = marketplace / "MetaXR" / "OculusXR.uplugin"
+    interaction = marketplace / "MetaXRInteraction" / "OculusInteraction.uplugin"
+    movement = marketplace / "MetaXR" / "Source" / "OculusXRMovement" / "OculusXRMovement.Build.cs"
+    simulator = [
+        tools / "MetaXRSimulator" / "v201.0" / "MetaXRSimulator.exe",
+        tools / "MetaXRSimulator" / "v201.0" / "meta_openxr_simulator.json",
+    ]
+    renderdoc = [
+        Path("C:/Program Files/RenderDoc/qrenderdoc.exe"),
+        Path("C:/Program Files/RenderDoc/renderdoccmd.exe"),
+    ]
+    pix = [
+        Path("C:/Program Files/Microsoft PIX/2603.25/WinPix.exe"),
+        Path("C:/Program Files/Microsoft PIX/2603.25/pixtool.exe"),
+    ]
+    openxr_explorer = [
+        tools / "OpenXR-Explorer-v1.7" / "openxr-explorer.exe",
+        tools / "OpenXR-Explorer-v1.7" / "xrsetruntime.exe",
+    ]
+    openxr_layers = [
+        tools / "OpenXR-SDK-Source" / "bin" / "api_layers" / "XrApiLayer_api_dump.dll",
+        tools / "OpenXR-SDK-Source" / "bin" / "api_layers" / "XrApiLayer_core_validation.dll",
+        tools / "OpenXR-SDK-Source" / "bin" / "api_layers" / "XrApiLayer_best_practices_validation.dll",
+    ]
+    nsight = [
+        tools / "NVIDIA_Nsight_Graphics_2026.2_Portable" / "host" / "windows-desktop-nomad-x64" / "ngfx.exe",
+        tools / "NVIDIA_Nsight_Graphics_2026.2_Portable" / "host" / "windows-desktop-nomad-x64" / "ngfx-ui.exe",
+    ]
+    dlss_plugins = [
+        marketplace / "DLSS" / "DLSS.uplugin",
+        marketplace / "StreamlineCore" / "StreamlineCore.uplugin",
+        marketplace / "StreamlineReflex" / "StreamlineReflex.uplugin",
+        marketplace / "StreamlineDLSSG" / "StreamlineDLSSG.uplugin",
+        marketplace / "StreamlineNGXCommon" / "StreamlineNGXCommon.uplugin",
+    ]
+    insights = engine / "Engine" / "Binaries" / "Win64" / "UnrealInsights.exe"
+
+    checks = [
+        ("Meta Quest Developer Hub", Path("C:/Program Files/Meta Quest Developer Hub/Meta Quest Developer Hub.exe").exists(), "6.4.1 expected"),
+        ("Meta XR plugin", meta_xr.exists(), uplugin_detail(meta_xr)),
+        ("Meta Interaction SDK", interaction.exists(), uplugin_detail(interaction)),
+        ("Meta Movement SDK module", movement.exists(), str(movement)),
+        ("Meta XR Simulator payload", files_ready(simulator), str(simulator[0])),
+        ("RenderDoc", files_ready(renderdoc), str(renderdoc[0])),
+        ("Microsoft PIX", files_ready(pix), str(pix[0])),
+        ("OpenXR Explorer", files_ready(openxr_explorer), str(openxr_explorer[0])),
+        ("Khronos OpenXR SDK API layers", files_ready(openxr_layers), str(openxr_layers[0].parent)),
+        ("NVIDIA Nsight Graphics portable host", files_ready(nsight), str(nsight[0])),
+        ("NVIDIA DLSS/Streamline UE plugins", files_ready(dlss_plugins), str(marketplace)),
+        ("Unreal Insights", insights.exists(), str(insights)),
+    ]
+
+    codex_ok, codex_detail = run_checked(["codex", "mcp", "list"])
+    checks.append(("Codex MCP config", codex_ok, "codex mcp list succeeded" if codex_ok else first_line(codex_detail)))
+
+    failed = False
+    for label, ok, detail in checks:
+        print_status(label, ok, detail)
+        failed = failed or not ok
+    if files_ready(nsight):
+        print("NOTE: Nsight Graphics is portable-extracted because its MSI requires elevation for registration.")
+    if files_ready(simulator):
+        print("NOTE: Meta XR Simulator is staged but not activated as the system OpenXR runtime.")
     return 1 if failed else 0
 
 

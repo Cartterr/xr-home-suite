@@ -11,7 +11,7 @@ import sys
 
 from .architecture import run_architecture_check
 from .deps import sync_openxr_deps
-from .doctor import run_doctor, run_unreal_doctor
+from .doctor import run_doctor, run_tools_doctor, run_unreal_doctor
 from .paths import ensure_external_layout, external_home
 from .secrets import run_secret_scan
 from .unreal import run_unreal_link_setup
@@ -393,6 +393,9 @@ def main(argv: list[str] | None = None) -> int:
 
     unreal_doctor = subparsers.add_parser("unreal-doctor", help="Check Unreal/Meta/NVIDIA engine access.")
     unreal_doctor.set_defaults(func=lambda args: run_unreal_doctor())
+
+    tools_doctor = subparsers.add_parser("tools-doctor", help="Check external XR/graphics developer tools.")
+    tools_doctor.set_defaults(func=lambda args: run_tools_doctor())
 
     unreal_link_setup = subparsers.add_parser(
         "unreal-link-setup",
