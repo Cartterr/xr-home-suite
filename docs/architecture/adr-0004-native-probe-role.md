@@ -16,5 +16,6 @@ The native path is the most direct way to verify OpenXR extensions, Meta Link be
 
 - Keep the probe modular and small.
 - Emit machine-readable capability reports.
+- Enforce one active `python -m xrhs run-probe` owner at a time through the CLI wrapper.
 - Preserve D3D11 as a stable comparison path.
 - Add D3D12 probing separately before using D3D12 as a native product fallback.

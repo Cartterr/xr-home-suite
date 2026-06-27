@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
 import os
 from pathlib import Path
@@ -54,6 +55,10 @@ VISIBLE_PROBE_PREFIXES = (
 )
 
 
+class ProbeLockBusy(RuntimeError):
+    pass
+
+
 def run_command(args: list[str], *, cwd: str | None = None) -> int:
     env = os.environ.copy()
     env.setdefault("XRHS_HOME", str(external_home()))
@@ -71,8 +76,61 @@ def is_visible_probe_line(line: str) -> bool:
 
 
 def default_probe_log_path() -> Path:
-    timestamp = dt.datetime.now(dt.UTC).strftime("%Y%m%d-%H%M%S")
-    return external_home() / "artifacts" / "logs" / f"openxr_probe-{timestamp}.log"
+    timestamp = dt.datetime.now(dt.UTC).strftime("%Y%m%d-%H%M%S-%f")
+    return external_home() / "artifacts" / "logs" / f"openxr_probe-{timestamp}-{os.getpid()}.log"
+
+
+@contextlib.contextmanager
+def probe_owner_lock(command: list[str]):
+    lock_path = external_home() / "cache" / "openxr_probe.owner.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as lock_file:
+        lock_file.seek(0, os.SEEK_END)
+        if lock_file.tell() == 0:
+            lock_file.write("\n")
+            lock_file.flush()
+        lock_file.seek(0)
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as error:
+            detail = ""
+            try:
+                lock_file.seek(1)
+                detail = lock_file.read().strip()
+            except OSError:
+                pass
+            print("Another OpenXR probe launched through python -m xrhs is already active.")
+            if detail:
+                print(f"Active probe: {detail}")
+            print("Wait for it to finish before starting another run-probe command.")
+            raise ProbeLockBusy() from error
+        try:
+            lock_file.seek(0)
+            lock_file.truncate()
+            lock_file.write("\n")
+            lock_file.write(
+                f"pid={os.getpid()} started={dt.datetime.now(dt.UTC).isoformat()} "
+                f"command={' '.join(command)}"
+            )
+            lock_file.flush()
+            yield
+        finally:
+            if os.name == "nt":
+                import msvcrt
+
+                lock_file.seek(0)
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 def run_quiet_probe(command: list[str], log_path: Path) -> int:
@@ -144,9 +202,13 @@ def run_probe(args: argparse.Namespace) -> int:
     if probe_args and probe_args[0] == "--":
         probe_args = probe_args[1:]
     command = [str(exe), *probe_args]
-    if args.raw_output:
-        return run_command(command)
-    return run_quiet_probe(command, args.log or default_probe_log_path())
+    try:
+        with probe_owner_lock(command):
+            if args.raw_output:
+                return run_command(command)
+            return run_quiet_probe(command, args.log or default_probe_log_path())
+    except ProbeLockBusy:
+        return 2
 
 
 def run_all_checks(_: argparse.Namespace) -> int:

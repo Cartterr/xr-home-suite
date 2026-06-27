@@ -160,6 +160,7 @@ Native Windows/OpenXR status in this repo:
 ## Practical Defaults For This Repo
 
 - Default test: keep depth/hands capped at `30 Hz`.
+- Run only one probe at a time. The `python -m xrhs run-probe` wrapper holds a lock under `C:\XRHomeSuite\cache` so a second wrapper-launched probe fails fast instead of creating a second OpenXR session owner.
 - Lag isolation:
   - render + passthrough only: `python -m xrhs run-probe -- --seconds 60 --no-depth --no-hands`
   - hands only: `python -m xrhs run-probe -- --seconds 60 --no-depth --hand-hz 15`
