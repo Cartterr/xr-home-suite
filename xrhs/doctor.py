@@ -140,6 +140,16 @@ def first_line(value: str) -> str:
     return value.splitlines()[0] if value else ""
 
 
+def listed_mcp_servers(output: str) -> set[str]:
+    servers: set[str] = set()
+    for line in output.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("Name ") or stripped.startswith("-"):
+            continue
+        servers.add(stripped.split()[0])
+    return servers
+
+
 def print_meta_plugin_markers(path: Path) -> bool:
     markers = find_meta_plugin_markers(path)
     if not markers:
@@ -240,6 +250,10 @@ def run_tools_doctor() -> int:
 
     codex_ok, codex_detail = run_checked(["codex", "mcp", "list"])
     checks.append(("Codex MCP config", codex_ok, "codex mcp list succeeded" if codex_ok else first_line(codex_detail)))
+    if codex_ok:
+        servers = listed_mcp_servers(codex_detail)
+        for server in ("github", "tubemcp", "blender", "playwright", "context7", "ue-mcp"):
+            checks.append((f"Codex MCP {server}", server in servers, "enabled in Codex MCP list"))
 
     failed = False
     for label, ok, detail in checks:
