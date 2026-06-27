@@ -167,6 +167,12 @@ float4 PSMain(PSIn input) : SV_Target { return input.color; }
     blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
     blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
     checkHr(device_->CreateBlendState(&blendDesc, &blendState_), "CreateBlendState");
+
+    D3D11_RASTERIZER_DESC rasterizerDesc{};
+    rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+    rasterizerDesc.CullMode = D3D11_CULL_NONE;
+    rasterizerDesc.DepthClipEnable = TRUE;
+    checkHr(device_->CreateRasterizerState(&rasterizerDesc, &rasterizerState_), "CreateRasterizerState");
 }
 
 void D3D11Renderer::cleanup() {

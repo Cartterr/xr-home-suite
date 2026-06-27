@@ -79,6 +79,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout_;
     Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer_;
     Microsoft::WRL::ComPtr<ID3D11BlendState> blendState_;
+    Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizerState_;
 
     std::vector<XrViewConfigurationView> viewConfigViews_;
     std::vector<XrView> views_;

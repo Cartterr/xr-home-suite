@@ -252,10 +252,11 @@ void D3D11Renderer::renderEye(uint32_t eye, const OverlayState& state,
     context_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     context_->IASetInputLayout(inputLayout_.Get());
     context_->IASetVertexBuffers(0, 1, buffers, &stride, &offset);
+    context_->RSSetState(rasterizerState_.Get());
     context_->VSSetShader(vertexShader_.Get(), nullptr, 0);
     context_->PSSetShader(pixelShader_.Get(), nullptr, 0);
     constexpr float blendFactor[] = {0.0f, 0.0f, 0.0f, 0.0f};
-    context_->OMSetBlendState(blendState_.Get(), blendFactor, 0xFFFFFFFF);
+    context_->OMSetBlendState(nullptr, blendFactor, 0xFFFFFFFF);
     context_->Draw(static_cast<UINT>(vertices.size()), 0);
 
     const double elapsedSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count();

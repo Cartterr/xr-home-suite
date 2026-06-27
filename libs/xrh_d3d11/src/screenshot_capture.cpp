@@ -130,17 +130,16 @@ void D3D11Renderer::captureEyeIfNeeded(uint32_t eye,
     try {
         D3D11_TEXTURE2D_DESC sourceDesc{};
         texture->GetDesc(&sourceDesc);
-        const DXGI_FORMAT captureFormat =
+        const DXGI_FORMAT pixelFormat =
             swapchainFormat_ == DXGI_FORMAT_UNKNOWN ? sourceDesc.Format : swapchainFormat_;
-        const FormatLayout layout = layoutFor(captureFormat);
+        const FormatLayout layout = layoutFor(pixelFormat);
         if (!layout.supported) {
             std::cout << "Warning: screenshot skipped for unsupported format "
-                      << static_cast<int>(captureFormat) << "\n";
+                      << static_cast<int>(pixelFormat) << "\n";
             return;
         }
 
         D3D11_TEXTURE2D_DESC stagingDesc = sourceDesc;
-        stagingDesc.Format = captureFormat;
         stagingDesc.MipLevels = 1;
         stagingDesc.ArraySize = 1;
         stagingDesc.SampleDesc.Count = 1;
@@ -165,11 +164,12 @@ void D3D11Renderer::captureEyeIfNeeded(uint32_t eye,
                 std::cout << "Warning: screenshot resolve texture creation failed.\n";
                 return;
             }
-            context_->ResolveSubresource(resolved.Get(), 0, texture, 0, captureFormat);
+            context_->ResolveSubresource(resolved.Get(), 0, texture, 0, pixelFormat);
             context_->CopyResource(staging.Get(), resolved.Get());
         } else {
             context_->CopyResource(staging.Get(), texture);
         }
+        context_->Flush();
 
         D3D11_MAPPED_SUBRESOURCE mapped{};
         if (FAILED(context_->Map(staging.Get(), 0, D3D11_MAP_READ, 0, &mapped))) {
