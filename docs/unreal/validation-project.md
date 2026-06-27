@@ -48,6 +48,7 @@ Source validation order:
 - Dependencies are synced outside the repo with cache under `C:\XRHomeSuite\cache`.
 - `UE5.sln` and UnrealBuildTool are generated.
 - `Engine\Binaries\Win64\UnrealEditor.exe` is built.
+- `Engine\Binaries\Win64\ShaderCompileWorker.exe` is built.
 - Meta XR / Horizon Integration SDK `201.0` is installed under `Engine\Plugins\Marketplace\MetaXR`.
 - `XRHomeSuiteValidationEditor` builds successfully through UnrealBuildTool.
 
@@ -56,6 +57,10 @@ Source validation order:
 Build the validation editor target without using script wrappers:
 
 `dotnet C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll XRHomeSuiteValidationEditor Win64 Development "-Project=V:\dev\xr-home-suite\unreal\XRHomeSuiteValidation\XRHomeSuiteValidation.uproject" -WaitMutex -NoHotReload`
+
+Build the shader worker if the engine tree is rebuilt or launch reports it missing:
+
+`dotnet C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll ShaderCompileWorker Win64 Development -WaitMutex`
 
 Launch the validation scene over Meta Horizon Link:
 

@@ -54,7 +54,7 @@ def check_git_remote(remote: str) -> bool:
     return result.returncode == 0
 
 
-def print_engine_markers(path: Path) -> None:
+def print_engine_markers(path: Path) -> bool:
     markers = [
         ("source tree", path / "Engine" / "Source" / "Runtime"),
         ("generated solution", path / "UE5.sln"),
@@ -63,10 +63,14 @@ def print_engine_markers(path: Path) -> None:
             path / "Engine" / "Binaries" / "DotNET" / "UnrealBuildTool" / "UnrealBuildTool.dll",
         ),
         ("UnrealEditor executable", path / "Engine" / "Binaries" / "Win64" / "UnrealEditor.exe"),
+        ("ShaderCompileWorker executable", path / "Engine" / "Binaries" / "Win64" / "ShaderCompileWorker.exe"),
     ]
+    all_ready = True
     for label, marker in markers:
         ok = marker.exists()
+        all_ready = all_ready and ok
         print(f"  {'READY' if ok else 'PENDING'}: {label} - {marker}")
+    return all_ready
 
 
 def find_meta_plugin_markers(path: Path) -> list[tuple[Path, str]]:
@@ -165,12 +169,13 @@ def run_unreal_doctor() -> int:
         Path(f"C:/Program Files/Epic Games/UE_{TARGET_UNREAL_VERSION}"),
     ]
     found = [path for path in candidates if path.exists()]
-    meta_plugin_ready = False
+    launch_ready = False
     if found:
         for path in found:
             print(f"FOUND: {path}")
-            print_engine_markers(path)
-            meta_plugin_ready = print_meta_plugin_markers(path) or meta_plugin_ready
+            engine_ready = print_engine_markers(path)
+            meta_plugin_ready = print_meta_plugin_markers(path)
+            launch_ready = launch_ready or (engine_ready and meta_plugin_ready)
     else:
         print(f"No UE {TARGET_UNREAL_VERSION} installation found.")
 
@@ -201,4 +206,4 @@ def run_unreal_doctor() -> int:
         print("")
         print("Source access gate: passed for EpicGames, Meta/Oculus, and NVIDIA NvRTX remotes.")
 
-    return 1 if blocked or not found or not meta_plugin_ready else 0
+    return 1 if blocked or not launch_ready else 0
