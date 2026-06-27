@@ -76,10 +76,15 @@ def find_meta_plugin_markers(path: Path) -> list[tuple[Path, str]]:
         path / "Engine" / "Plugins",
     ]
     markers: list[tuple[Path, str]] = []
+    seen: set[Path] = set()
     for root in plugin_roots:
         if not root.exists():
             continue
         for plugin_file in root.rglob("*.uplugin"):
+            resolved = plugin_file.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
             if not any(name.lower() in plugin_file.stem.lower() for name in META_PLUGIN_NAMES):
                 continue
             version = "unknown version"
@@ -92,14 +97,20 @@ def find_meta_plugin_markers(path: Path) -> list[tuple[Path, str]]:
     return markers
 
 
-def print_meta_plugin_markers(path: Path) -> None:
+def has_target_meta_plugin(markers: list[tuple[Path, str]]) -> bool:
+    return any(TARGET_META_INTEGRATION_VERSION in version for _, version in markers)
+
+
+def print_meta_plugin_markers(path: Path) -> bool:
     markers = find_meta_plugin_markers(path)
     if not markers:
         expected = path / "Engine" / "Plugins" / "Marketplace"
         print(f"  PENDING: Meta XR plugin {TARGET_META_INTEGRATION_VERSION} - expected under {expected}")
-        return
+        return False
     for plugin_file, version in markers:
-        print(f"  READY: Meta XR plugin candidate {version} - {plugin_file}")
+        status = "READY" if TARGET_META_INTEGRATION_VERSION in version else "FOUND"
+        print(f"  {status}: Meta XR plugin candidate {version} - {plugin_file}")
+    return has_target_meta_plugin(markers)
 
 
 def run_doctor() -> int:
@@ -154,11 +165,12 @@ def run_unreal_doctor() -> int:
         Path(f"C:/Program Files/Epic Games/UE_{TARGET_UNREAL_VERSION}"),
     ]
     found = [path for path in candidates if path.exists()]
+    meta_plugin_ready = False
     if found:
         for path in found:
             print(f"FOUND: {path}")
             print_engine_markers(path)
-            print_meta_plugin_markers(path)
+            meta_plugin_ready = print_meta_plugin_markers(path) or meta_plugin_ready
     else:
         print(f"No UE {TARGET_UNREAL_VERSION} installation found.")
 
@@ -189,4 +201,4 @@ def run_unreal_doctor() -> int:
         print("")
         print("Source access gate: passed for EpicGames, Meta/Oculus, and NVIDIA NvRTX remotes.")
 
-    return 1 if blocked or not found else 0
+    return 1 if blocked or not found or not meta_plugin_ready else 0

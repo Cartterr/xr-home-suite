@@ -39,6 +39,7 @@ Source validation order:
   - `DerivedDataCache`
   - `Intermediate`
   - `Saved`
+- Local generated folders are junctioned to `C:\XRHomeSuite\build\xr-home-suite\unreal\XRHomeSuiteValidation` after build validation.
 
 ## Current Bootstrap State
 
@@ -47,7 +48,18 @@ Source validation order:
 - Dependencies are synced outside the repo with cache under `C:\XRHomeSuite\cache`.
 - `UE5.sln` and UnrealBuildTool are generated.
 - `Engine\Binaries\Win64\UnrealEditor.exe` is built.
-- The validation project waits for the Meta XR / Horizon Integration SDK `201.0` plugin path and enough free `C:` space for plugin/derived-data work.
+- Meta XR / Horizon Integration SDK `201.0` is installed under `Engine\Plugins\Marketplace\MetaXR`.
+- `XRHomeSuiteValidationEditor` builds successfully through UnrealBuildTool.
+
+## Commands
+
+Build the validation editor target without using script wrappers:
+
+`dotnet C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll XRHomeSuiteValidationEditor Win64 Development "-Project=V:\dev\xr-home-suite\unreal\XRHomeSuiteValidation\XRHomeSuiteValidation.uproject" -WaitMutex -NoHotReload`
+
+Launch the validation scene over Meta Horizon Link:
+
+`C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\Win64\UnrealEditor.exe V:\dev\xr-home-suite\unreal\XRHomeSuiteValidation\XRHomeSuiteValidation.uproject -game -vr -d3d12 -log`
 
 ## Required Scene
 
@@ -68,6 +80,15 @@ The first scene should include:
   - hands on/off
   - depth off/low/adaptive
   - performance HUD on/off
+
+Current implementation status:
+
+- The scene is source-only and creates a validation grid at runtime.
+- The project enables `OculusXR`, `OpenXR`, `OpenXRHandTracking`, `XRBase`, and `EnhancedInput`.
+- The renderer defaults to D3D12, SM6, Forward Renderer, instanced stereo, and MSAA.
+- The validation pawn requests a persistent Meta passthrough underlay at startup.
+- The debug panel shows XR runtime, GPU adapter, frame time, passthrough state, hand/controller tracking state, and depth mode.
+- Keyboard toggles exist for early testing: `F1` debug panel, `H` hand/controller visibility request, `D` depth mode label.
 
 ## Defaults
 

@@ -30,6 +30,8 @@ Local stock Unreal source install:
 - Solution: `C:\XRHomeSuite\engines\UE_5.7.4\UE5.sln`
 - Editor binary: built successfully at `C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\Win64\UnrealEditor.exe`
 - Editor build log: `C:\XRHomeSuite\artifacts\logs\ue-5.7.4-build-unrealeditor-resume.log`
+- Meta XR plugin: installed at `C:\XRHomeSuite\engines\UE_5.7.4\Engine\Plugins\Marketplace\MetaXR`
+- Meta XR plugin descriptor: `MetaXR\OculusXR.uplugin`, version `1.201.0`
 
 Known compatible source paths:
 
@@ -57,7 +59,8 @@ Private Unreal repositories usually return `404` when the GitHub account has not
 - Keep all engine source, dependencies, intermediates, and caches on `C:\XRHomeSuite`, never under the repo.
 - Use direct executables from the source tree rather than adding tracked `.bat`, `.cmd`, or `.ps1` wrappers.
 - If the editor build fails on `atls.lib`, `atlbase.h`, or `DumpSyms`, install the Visual Studio Build Tools 2022 C++ ATL/MFC component and rerun the same UBT command.
-- Do not create the validation project until Meta XR / Horizon Integration SDK `201.0` is installed or staged.
+- Meta XR `201.0` needed a local MSVC 14.44 compatibility patch on this machine: replace `INFINITY` with `std::numeric_limits<float>::infinity()` in `OculusXRHMD_Layer.cpp` and `OpenXR\OculusXRSpaceWarp.cpp`.
+- The first validation project has been created and its `XRHomeSuiteValidationEditor` target builds successfully.
 - Keep at least tens of GB free on `C:` before cloning Meta/NvRTX engine paths or installing large Unreal plugins. The stock source build can leave `C:\XRHomeSuite\engines` above 220 GB.
 
 ## Official References

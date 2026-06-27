@@ -46,6 +46,8 @@ Testing/
 
 # Visual Studio and MSBuild
 .vs/
+.vsconfig
+*.sln
 *.sln.docstates
 *.user
 *.suo
