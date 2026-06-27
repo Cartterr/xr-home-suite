@@ -64,7 +64,7 @@ Private Unreal repositories usually return `404` when the GitHub account has not
 - If Unreal shows `Unable to launch ShaderCompileWorker`, build it directly with `dotnet C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll ShaderCompileWorker Win64 Development -WaitMutex`.
 - `LogShaderCompilers` temp working directory cleanup messages are normal. `LogXGEController` Incredibuild messages are avoidable noise; the validation project disables the `XGEController` plugin and uses local shader workers.
 - Meta XR `201.0` needed a local MSVC 14.44 compatibility patch on this machine: replace `INFINITY` with `std::numeric_limits<float>::infinity()` in `OculusXRHMD_Layer.cpp` and `OpenXR\OculusXRSpaceWarp.cpp`.
-- The first validation project has been created and its `XRHomeSuiteValidationEditor` target builds successfully.
+- The first validation project has been created and its `XRHSValidationEditor` target builds successfully.
 - Keep at least tens of GB free on `C:` before cloning Meta/NvRTX engine paths or installing large Unreal plugins. The stock source build can leave `C:\XRHomeSuite\engines` above 220 GB.
 
 ## Official References

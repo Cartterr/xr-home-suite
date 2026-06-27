@@ -34,14 +34,14 @@ Source validation order:
 ## Project Location
 
 - Engine installs/clones: `C:\XRHomeSuite\engines`
-- Unreal project, once generated: `V:\dev\xr-home-suite\unreal\XRHomeSuiteValidation`
+- Unreal project, once generated: `V:\dev\xr-home-suite\unreal\XRHSValidation`
 - Unreal generated folders remain ignored:
   - `Binaries`
   - `Build`
   - `DerivedDataCache`
   - `Intermediate`
   - `Saved`
-- Local generated folders are junctioned to `C:\XRHomeSuite\build\xr-home-suite\unreal\XRHomeSuiteValidation` after build validation.
+- Local generated folders are junctioned to `C:\XRHomeSuite\build\xr-home-suite\unreal\XRHSValidation` after build validation.
 
 ## Current Bootstrap State
 
@@ -52,13 +52,14 @@ Source validation order:
 - `Engine\Binaries\Win64\UnrealEditor.exe` is built.
 - `Engine\Binaries\Win64\ShaderCompileWorker.exe` is built.
 - Meta XR / Horizon Integration SDK `201.0` is installed under `Engine\Plugins\Marketplace\MetaXR`.
-- `XRHomeSuiteValidationEditor` builds successfully through UnrealBuildTool.
+- `XRHSValidationEditor` builds successfully through UnrealBuildTool.
+- The project shell and C++ modules use `XRHSValidation` because Unreal warns when a project filename exceeds 20 characters and several editor code-generation paths assume the project name is also the primary game module.
 
 ## Commands
 
 Build the validation editor target without using script wrappers:
 
-`dotnet C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll XRHomeSuiteValidationEditor Win64 Development "-Project=V:\dev\xr-home-suite\unreal\XRHomeSuiteValidation\XRHomeSuiteValidation.uproject" -WaitMutex -NoHotReload`
+`dotnet C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll XRHSValidationEditor Win64 Development "-Project=V:\dev\xr-home-suite\unreal\XRHSValidation\XRHSValidation.uproject" -WaitMutex -NoHotReload`
 
 Build the shader worker if the engine tree is rebuilt or launch reports it missing:
 
@@ -72,7 +73,7 @@ Launch the validation scene over Meta Horizon Link:
 
 1. Open the project in the editor:
 
-   `C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\Win64\UnrealEditor.exe V:\dev\xr-home-suite\unreal\XRHomeSuiteValidation\XRHomeSuiteValidation.uproject -log`
+   `C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\Win64\UnrealEditor.exe V:\dev\xr-home-suite\unreal\XRHSValidation\XRHSValidation.uproject -log`
 
 2. Confirm the viewport preview platform is `Android Vulkan Mobile` / `Android_OpenXR`. The source default lives in `Config\DefaultEditorPerProjectUserSettings.ini`:
 
@@ -82,6 +83,13 @@ Launch the validation scene over Meta Horizon Link:
    - `PreviewDeviceProfileName=Android_OpenXR`
 
 3. Use the editor's `VR Preview` play mode while Meta Horizon Link is already connected and the headset is awake.
+
+   The validation project also adds editor shortcuts:
+
+   - Bottom status toolbar: `XRHS Start VR` and `XRHS Stop`.
+   - Main menu fallback: `Tools > XR Home Suite > Start XRHS VR Preview`.
+   - `XRHS Start VR` applies the Android OpenXR Link preview platform and passthrough alpha CVars before requesting Unreal's VR Preview session.
+   - Live Coding is disabled by project default so external editor-target builds are not blocked while iterating on this validation shell.
 
 Do not restart Meta Horizon Link from automation while debugging the validation scene. Close the Unreal preview first, then relaunch from the editor if needed.
 
@@ -118,9 +126,10 @@ Current implementation status:
 - The project disables `XGEController` so machines without Incredibuild do not log XGE shader compile warnings.
 - The product renderer defaults to D3D12, SM6, Forward Renderer, instanced stereo, and MSAA.
 - The Link passthrough validation path defaults the editor preview platform to Android Vulkan Mobile with the `Android_OpenXR` device profile.
-- The validation pawn requests a persistent Meta passthrough underlay at startup; the app framebuffer must keep alpha enabled so the underlay is visible.
+- The validation pawn requests persistent Meta passthrough at startup. Editor VR Preview starts in overlay-fallback mode so the camera feed is visible even if the app framebuffer is still opaque; underlay mode remains available for alpha validation.
+- Persistent passthrough parameters must call `ApplyShape()` after setting layer placement/opacity because the Meta editor path reloads shape settings from the serializable temporary fields.
 - The debug panel shows XR runtime, GPU adapter, frame time, passthrough state, hand/controller tracking state, and depth mode.
-- Keyboard toggles exist for early testing: `F1` debug panel, `H` hand/controller visibility request, `D` depth mode label.
+- Keyboard toggles exist for early testing: `F1` debug panel, `F2` passthrough overlay/underlay placement, `H` hand/controller visibility request, `D` depth mode label.
 
 Current clean-launch verification:
 

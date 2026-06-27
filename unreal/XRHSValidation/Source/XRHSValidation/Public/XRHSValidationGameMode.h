@@ -5,7 +5,7 @@
 #include "XRHSValidationGameMode.generated.h"
 
 UCLASS()
-class XRHOMESUITEVALIDATION_API AXRHSValidationGameMode : public AGameModeBase
+class XRHSVALIDATION_API AXRHSValidationGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 

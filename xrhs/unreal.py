@@ -5,7 +5,7 @@ from pathlib import Path
 from .paths import repo_root
 
 
-PROJECT_PATH = repo_root() / "unreal" / "XRHomeSuiteValidation" / "XRHomeSuiteValidation.uproject"
+PROJECT_PATH = repo_root() / "unreal" / "XRHSValidation" / "XRHSValidation.uproject"
 EDITOR_USER_SETTINGS_PATH = (
     PROJECT_PATH.parent / "Saved" / "Config" / "WindowsEditor" / "EditorPerProjectUserSettings.ini"
 )
@@ -83,7 +83,7 @@ def run_unreal_link_setup(engine_root: Path) -> int:
     print("Unreal Link passthrough setup:")
     print(f"  {'UPDATED' if changed else 'READY'}: {EDITOR_USER_SETTINGS_PATH}")
     print("  Preview platform: Android Vulkan Mobile / Android_OpenXR")
-    print("  Passthrough layer: Underlay, requires projection alpha")
+    print("  Passthrough layer: overlay fallback by default; F2 toggles underlay alpha validation")
     print("")
     print("Safe launch flow:")
     print(f"  {format_launch_command(engine_root)}")

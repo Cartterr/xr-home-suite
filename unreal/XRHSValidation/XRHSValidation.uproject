@@ -5,8 +5,13 @@
 	"Description": "Source-only Meta Horizon Link validation shell for XR Home Suite.",
 	"Modules": [
 		{
-			"Name": "XRHomeSuiteValidation",
+			"Name": "XRHSValidation",
 			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "XRHSValidationEditor",
+			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}
 	],

@@ -27,6 +27,14 @@ const TCHAR* BoolText(bool bValue)
 {
 	return bValue ? TEXT("yes") : TEXT("no");
 }
+
+void SetCVar(const TCHAR* Name, int32 Value)
+{
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Name))
+	{
+		CVar->Set(Value, ECVF_SetByCode);
+	}
+}
 }
 
 AXRHSValidationPawn::AXRHSValidationPawn()
@@ -89,6 +97,7 @@ void AXRHSValidationPawn::SetupPlayerInputComponent(UInputComponent* PlayerInput
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 	PlayerInputComponent->BindKey(EKeys::F1, IE_Pressed, this, &AXRHSValidationPawn::ToggleDebugPanel);
+	PlayerInputComponent->BindKey(EKeys::F2, IE_Pressed, this, &AXRHSValidationPawn::TogglePassthroughPlacement);
 	PlayerInputComponent->BindKey(EKeys::D, IE_Pressed, this, &AXRHSValidationPawn::CycleDepthMode);
 	PlayerInputComponent->BindKey(EKeys::H, IE_Pressed, this, &AXRHSValidationPawn::ToggleHandsRequested);
 }
@@ -140,14 +149,28 @@ void AXRHSValidationPawn::ToggleHandsRequested()
 	RightController->SetVisibility(bHandsRequested);
 }
 
+void AXRHSValidationPawn::TogglePassthroughPlacement()
+{
+	bPassthroughOverlayMode = !bPassthroughOverlayMode;
+	TryStartPassthrough();
+}
+
 void AXRHSValidationPawn::ApplyPassthroughCompositingSettings()
 {
+	SetCVar(TEXT("xr.OpenXRInvertAlpha"), 1);
+	SetCVar(TEXT("xr.OpenXREnvironmentBlendMode"), 3);
+	SetCVar(TEXT("r.Mobile.PropagateAlpha"), 1);
+	SetCVar(TEXT("r.PostProcessing.PropagateAlpha"), 1);
+	SetCVar(TEXT("OpenXR.AlphaInvertPass"), 1);
+
 	const IConsoleVariable* PropagateAlpha = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PostProcessing.PropagateAlpha"));
 	const IConsoleVariable* MobilePropagateAlpha = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.PropagateAlpha"));
+	const IConsoleVariable* EnvironmentBlend = IConsoleManager::Get().FindConsoleVariable(TEXT("xr.OpenXREnvironmentBlendMode"));
 	CompositingState = FString::Printf(
-		TEXT("alpha pc=%s mobile=%s"),
+		TEXT("alpha pc=%s mobile=%s blend=%d"),
 		BoolText(PropagateAlpha && PropagateAlpha->GetBool()),
-		BoolText(MobilePropagateAlpha && MobilePropagateAlpha->GetBool()));
+		BoolText(MobilePropagateAlpha && MobilePropagateAlpha->GetBool()),
+		EnvironmentBlend ? EnvironmentBlend->GetInt() : 0);
 }
 
 void AXRHSValidationPawn::TryStartPassthrough()
@@ -169,18 +192,21 @@ void AXRHSValidationPawn::TryStartPassthrough()
 	Parameters.bVisible = true;
 	Parameters.Priority = 0;
 	Parameters.Shape = NewObject<UOculusXRStereoLayerShapeReconstructed>(this);
-	Parameters.Shape->LayerOrder = PassthroughLayerOrder_Underlay;
-	Parameters.Shape->TextureOpacityFactor = 1.0f;
+	Parameters.Shape->LayerOrder = bPassthroughOverlayMode ? PassthroughLayerOrder_Overlay : PassthroughLayerOrder_Underlay;
+	Parameters.Shape->TextureOpacityFactor = bPassthroughOverlayMode ? 0.85f : 1.0f;
+	Parameters.ApplyShape();
 
 	FOculusXRPassthrough_LayerResumed_Single ResumeDelegate;
 	ResumeDelegate.BindDynamic(this, &AXRHSValidationPawn::HandlePassthroughResumed);
 	PassthroughInstance = PassthroughSubsystem->InitializePersistentPassthrough(Parameters, ResumeDelegate);
-	PassthroughState = PassthroughInstance && PassthroughInstance->IsVisible() ? TEXT("underlay requested") : TEXT("create failed");
+	PassthroughState = PassthroughInstance && PassthroughInstance->IsVisible()
+		? FString::Printf(TEXT("%s requested"), bPassthroughOverlayMode ? TEXT("overlay") : TEXT("underlay"))
+		: TEXT("create failed");
 }
 
 void AXRHSValidationPawn::HandlePassthroughResumed()
 {
-	PassthroughState = TEXT("underlay resumed");
+	PassthroughState = FString::Printf(TEXT("%s resumed"), bPassthroughOverlayMode ? TEXT("overlay") : TEXT("underlay"));
 }
 
 void AXRHSValidationPawn::UpdateDebugPanel(float DeltaSeconds)

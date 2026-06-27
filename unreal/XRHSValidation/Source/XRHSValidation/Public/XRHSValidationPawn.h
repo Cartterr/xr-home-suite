@@ -18,7 +18,7 @@ enum class EXRHSDepthMode : uint8
 };
 
 UCLASS()
-class XRHOMESUITEVALIDATION_API AXRHSValidationPawn : public APawn
+class XRHSVALIDATION_API AXRHSValidationPawn : public APawn
 {
 	GENERATED_BODY()
 
@@ -55,6 +55,7 @@ private:
 	void CycleDepthMode();
 	void ToggleDebugPanel();
 	void ToggleHandsRequested();
+	void TogglePassthroughPlacement();
 	void ApplyPassthroughCompositingSettings();
 	void TryStartPassthrough();
 	void UpdateDebugPanel(float DeltaSeconds);
@@ -66,6 +67,7 @@ private:
 	FString TrackingText(const UMotionControllerComponent* MotionController) const;
 
 	EXRHSDepthMode DepthMode = EXRHSDepthMode::Off;
+	bool bPassthroughOverlayMode = true;
 	bool bHandsRequested = true;
 	bool bDebugPanelVisible = true;
 	float SmoothedFrameMs = 0.0f;

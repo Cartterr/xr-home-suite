@@ -1,8 +1,8 @@
 using UnrealBuildTool;
 
-public class XRHomeSuiteValidation : ModuleRules
+public class XRHSValidation : ModuleRules
 {
-	public XRHomeSuiteValidation(ReadOnlyTargetRules Target) : base(Target)
+	public XRHSValidation(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
