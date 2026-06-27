@@ -55,8 +55,12 @@ private:
 	void CycleDepthMode();
 	void ToggleDebugPanel();
 	void ToggleHandsRequested();
+	void ApplyPassthroughCompositingSettings();
 	void TryStartPassthrough();
 	void UpdateDebugPanel(float DeltaSeconds);
+
+	UFUNCTION()
+	void HandlePassthroughResumed();
 
 	FString DepthModeText() const;
 	FString TrackingText(const UMotionControllerComponent* MotionController) const;
@@ -66,4 +70,5 @@ private:
 	bool bDebugPanelVisible = true;
 	float SmoothedFrameMs = 0.0f;
 	FString PassthroughState = TEXT("pending");
+	FString CompositingState = TEXT("pending");
 };

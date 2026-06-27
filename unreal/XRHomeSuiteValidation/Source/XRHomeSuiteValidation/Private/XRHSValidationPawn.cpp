@@ -5,11 +5,13 @@
 #include "Components/TextRenderComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
+#include "HAL/IConsoleManager.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "InputCoreTypes.h"
 #include "IXRTrackingSystem.h"
 #include "MotionControllerComponent.h"
 #include "OculusXRFunctionLibrary.h"
+#include "OculusXRPersistentPassthroughInstance.h"
 #include "OculusXRPassthroughLayerComponent.h"
 #include "OculusXRPassthroughSubsystem.h"
 #include "RHIGlobals.h"
@@ -20,6 +22,11 @@ namespace
 constexpr float GridExtentCm = 300.0f;
 constexpr float GridStepCm = 50.0f;
 constexpr float GridLineThicknessCm = 1.0f;
+
+const TCHAR* BoolText(bool bValue)
+{
+	return bValue ? TEXT("yes") : TEXT("no");
+}
 }
 
 AXRHSValidationPawn::AXRHSValidationPawn()
@@ -59,13 +66,14 @@ AXRHSValidationPawn::AXRHSValidationPawn()
 	DebugPanel->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
 	DebugPanel->SetHorizontalAlignment(EHTA_Left);
 	DebugPanel->SetVerticalAlignment(EVRTA_TextTop);
-	DebugPanel->SetTextRenderColor(FColor(64, 255, 192));
-	DebugPanel->SetWorldSize(7.0f);
+	DebugPanel->SetTextRenderColor(FColor(32, 255, 192, 255));
+	DebugPanel->SetWorldSize(8.5f);
 }
 
 void AXRHSValidationPawn::BeginPlay()
 {
 	Super::BeginPlay();
+	ApplyPassthroughCompositingSettings();
 	BuildValidationGrid();
 	TryStartPassthrough();
 	UpdateDebugPanel(0.0f);
@@ -132,11 +140,20 @@ void AXRHSValidationPawn::ToggleHandsRequested()
 	RightController->SetVisibility(bHandsRequested);
 }
 
+void AXRHSValidationPawn::ApplyPassthroughCompositingSettings()
+{
+	const IConsoleVariable* PropagateAlpha = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PostProcessing.PropagateAlpha"));
+	CompositingState = FString::Printf(
+		TEXT("ctx alpha=%s"),
+		BoolText(PropagateAlpha && PropagateAlpha->GetBool()));
+}
+
 void AXRHSValidationPawn::TryStartPassthrough()
 {
 	if (!UOculusXRFunctionLibrary::IsPassthroughSupported())
 	{
 		PassthroughState = TEXT("not reported by runtime");
+		return;
 	}
 
 	UOculusXRPassthroughSubsystem* PassthroughSubsystem = UOculusXRPassthroughSubsystem::GetPassthroughSubsystem(GetWorld());
@@ -153,9 +170,15 @@ void AXRHSValidationPawn::TryStartPassthrough()
 	Parameters.Shape->LayerOrder = PassthroughLayerOrder_Underlay;
 	Parameters.Shape->TextureOpacityFactor = 1.0f;
 
-	FOculusXRPassthrough_LayerResumed_Single EmptyResumeDelegate;
-	PassthroughInstance = PassthroughSubsystem->InitializePersistentPassthrough(Parameters, EmptyResumeDelegate);
-	PassthroughState = PassthroughInstance ? TEXT("requested") : TEXT("create failed");
+	FOculusXRPassthrough_LayerResumed_Single ResumeDelegate;
+	ResumeDelegate.BindDynamic(this, &AXRHSValidationPawn::HandlePassthroughResumed);
+	PassthroughInstance = PassthroughSubsystem->InitializePersistentPassthrough(Parameters, ResumeDelegate);
+	PassthroughState = PassthroughInstance && PassthroughInstance->IsVisible() ? TEXT("underlay requested") : TEXT("create failed");
+}
+
+void AXRHSValidationPawn::HandlePassthroughResumed()
+{
+	PassthroughState = TEXT("underlay resumed");
 }
 
 void AXRHSValidationPawn::UpdateDebugPanel(float DeltaSeconds)
@@ -169,7 +192,7 @@ void AXRHSValidationPawn::UpdateDebugPanel(float DeltaSeconds)
 	const FString AdapterName = GRHIAdapterName.IsEmpty() ? TEXT("unknown") : GRHIAdapterName;
 
 	const FString Panel = FString::Printf(
-		TEXT("XR Home Suite\nXR %s connected=%s enabled=%s\nGPU %s\nFrame %.2f ms %.1f fps\nPassthrough %s\nHands requested=%s L=%s R=%s\nDepth %s"),
+		TEXT("XR Home Suite\nXR %s connected=%s enabled=%s\nGPU %s\nFrame %.2f ms %.1f fps\nPassthrough %s\nComposite %s\nHands requested=%s L=%s R=%s\nDepth %s"),
 		*XRSystemName,
 		UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayConnected() ? TEXT("yes") : TEXT("no"),
 		UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled() ? TEXT("yes") : TEXT("no"),
@@ -177,6 +200,7 @@ void AXRHSValidationPawn::UpdateDebugPanel(float DeltaSeconds)
 		SmoothedFrameMs,
 		Fps,
 		*PassthroughState,
+		*CompositingState,
 		bHandsRequested ? TEXT("yes") : TEXT("no"),
 		*TrackingText(LeftController),
 		*TrackingText(RightController),
