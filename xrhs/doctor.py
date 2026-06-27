@@ -11,6 +11,7 @@ from .paths import ensure_external_layout, external_home
 TARGET_UNREAL_VERSION = "5.7.4"
 TARGET_META_INTEGRATION_VERSION = "201.0"
 META_PLUGIN_NAMES = {"MetaXR", "MetaXRPlatform", "OculusXR"}
+SLATE_LAUNCHER_ICON_PLATFORMS = ("Android", "IOS", "Linux", "Mac", "TVOS")
 
 UNREAL_SOURCE_REMOTES = [
     (
@@ -71,6 +72,21 @@ def print_engine_markers(path: Path) -> bool:
         all_ready = all_ready and ok
         print(f"  {'READY' if ok else 'PENDING'}: {label} - {marker}")
     return all_ready
+
+
+def print_slate_launcher_icon_markers(path: Path) -> bool:
+    launcher_root = path / "Engine" / "Content" / "Editor" / "Slate" / "Launcher"
+    missing: list[Path] = []
+    for platform in SLATE_LAUNCHER_ICON_PLATFORMS:
+        for size in ("24x", "128x"):
+            marker = launcher_root / platform / f"Platform_{platform}_{size}.png"
+            if not marker.exists():
+                missing.append(marker)
+    if missing:
+        print(f"  PENDING: Slate launcher platform icons - {len(missing)} missing under {launcher_root}")
+        return False
+    print(f"  READY: Slate launcher platform icons - {launcher_root}")
+    return True
 
 
 def find_meta_plugin_markers(path: Path) -> list[tuple[Path, str]]:
@@ -174,8 +190,9 @@ def run_unreal_doctor() -> int:
         for path in found:
             print(f"FOUND: {path}")
             engine_ready = print_engine_markers(path)
+            slate_icons_ready = print_slate_launcher_icon_markers(path)
             meta_plugin_ready = print_meta_plugin_markers(path)
-            launch_ready = launch_ready or (engine_ready and meta_plugin_ready)
+            launch_ready = launch_ready or (engine_ready and slate_icons_ready and meta_plugin_ready)
     else:
         print(f"No UE {TARGET_UNREAL_VERSION} installation found.")
 

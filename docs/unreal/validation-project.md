@@ -90,10 +90,16 @@ Current implementation status:
 
 - The scene is source-only and creates a validation grid at runtime.
 - The project enables `OculusXR`, `OpenXR`, `OpenXRHandTracking`, `XRBase`, and `EnhancedInput`.
+- The project disables `XGEController` so machines without Incredibuild do not log XGE shader compile warnings.
 - The renderer defaults to D3D12, SM6, Forward Renderer, instanced stereo, and MSAA.
 - The validation pawn requests a persistent Meta passthrough underlay at startup.
 - The debug panel shows XR runtime, GPU adapter, frame time, passthrough state, hand/controller tracking state, and depth mode.
 - Keyboard toggles exist for early testing: `F1` debug panel, `H` hand/controller visibility request, `D` depth mode label.
+
+Current clean-launch verification:
+
+- Short hidden launch log: `C:\XRHomeSuite\artifacts\logs\xr-validation-clean-launch.log`
+- No matching `LogXGEController`, missing Slate platform icon, or missing `ShaderCompileWorker` warnings after cleanup.
 
 ## Defaults
 
