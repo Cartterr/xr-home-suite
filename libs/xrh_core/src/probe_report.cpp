@@ -116,6 +116,8 @@ void writeProbeReport(const std::filesystem::path& path, const ProbeReport& repo
     writeNumber(file, "leftValidJoints", report.leftValidJoints);
     writeNumber(file, "rightValidJoints", report.rightValidJoints);
     writeNumber(file, "privateCameraSourceCount", report.privateCameraSourceCount);
+    writeString(file, "screenshotMode", report.screenshotMode);
+    writeBool(file, "screenshotsIncludePassthrough", report.screenshotsIncludePassthrough);
     writeStringArray(file, "screenshotPaths", report.screenshotPaths, false);
     file << "}\n";
 }

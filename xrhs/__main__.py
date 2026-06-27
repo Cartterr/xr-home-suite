@@ -46,8 +46,8 @@ VISIBLE_PROBE_PREFIXES = (
     "Private Link camera-source count probe:",
     "Put the headset",
     "Sensor polling caps:",
-    "Screenshot capture:",
-    "Screenshot captured:",
+    "Overlay capture:",
+    "Overlay captured:",
     "Session running.",
     "frames=",
     "Ctrl+C received.",
@@ -199,6 +199,8 @@ def write_probe_summary(report_path: Path, log_path: Path | None, summary_path: 
             "report": str(report_path),
             "summary": str(summary_path) if summary_path else None,
             "log": str(log_path) if log_path else None,
+            "captureMode": data.get("screenshotMode"),
+            "passthroughIncluded": data.get("screenshotsIncludePassthrough"),
             "screenshots": screenshots,
         },
     }
@@ -228,7 +230,12 @@ def write_probe_summary(report_path: Path, log_path: Path | None, summary_path: 
         f"handsReady={summary['hands']['ready']} activeHands={summary['hands']['activeHandCount']} "
         f"cameraSources={summary['passthrough']['privateCameraSourceCount']}"
     )
-    print(f"  screenshots={len(screenshots)} summary={summary_path}")
+    print(
+        "  "
+        f"captures={len(screenshots)} mode={summary['artifacts']['captureMode']} "
+        f"passthroughIncluded={summary['artifacts']['passthroughIncluded']} "
+        f"summary={summary_path}"
+    )
 
 
 @contextlib.contextmanager

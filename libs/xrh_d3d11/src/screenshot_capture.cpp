@@ -134,7 +134,7 @@ void D3D11Renderer::captureEyeIfNeeded(uint32_t eye,
             swapchainFormat_ == DXGI_FORMAT_UNKNOWN ? sourceDesc.Format : swapchainFormat_;
         const FormatLayout layout = layoutFor(pixelFormat);
         if (!layout.supported) {
-            std::cout << "Warning: screenshot skipped for unsupported format "
+            std::cout << "Warning: overlay capture skipped for unsupported format "
                       << static_cast<int>(pixelFormat) << "\n";
             return;
         }
@@ -151,7 +151,7 @@ void D3D11Renderer::captureEyeIfNeeded(uint32_t eye,
 
         Microsoft::WRL::ComPtr<ID3D11Texture2D> staging;
         if (FAILED(device_->CreateTexture2D(&stagingDesc, nullptr, &staging))) {
-            std::cout << "Warning: screenshot staging texture creation failed.\n";
+            std::cout << "Warning: overlay capture staging texture creation failed.\n";
             return;
         }
 
@@ -161,7 +161,7 @@ void D3D11Renderer::captureEyeIfNeeded(uint32_t eye,
             resolveDesc.CPUAccessFlags = 0;
             Microsoft::WRL::ComPtr<ID3D11Texture2D> resolved;
             if (FAILED(device_->CreateTexture2D(&resolveDesc, nullptr, &resolved))) {
-                std::cout << "Warning: screenshot resolve texture creation failed.\n";
+                std::cout << "Warning: overlay capture resolve texture creation failed.\n";
                 return;
             }
             context_->ResolveSubresource(resolved.Get(), 0, texture, 0, pixelFormat);
@@ -173,7 +173,7 @@ void D3D11Renderer::captureEyeIfNeeded(uint32_t eye,
 
         D3D11_MAPPED_SUBRESOURCE mapped{};
         if (FAILED(context_->Map(staging.Get(), 0, D3D11_MAP_READ, 0, &mapped))) {
-            std::cout << "Warning: screenshot texture map failed.\n";
+            std::cout << "Warning: overlay capture texture map failed.\n";
             return;
         }
         const std::filesystem::path path = capturePath(screenshotConfig_, eye, frameIndex);
@@ -188,12 +188,12 @@ void D3D11Renderer::captureEyeIfNeeded(uint32_t eye,
         if (wrote) {
             screenshotPaths_.push_back(path.string());
             nextScreenshotAtSeconds_ = elapsedSeconds + screenshotConfig_.intervalSeconds;
-            std::cout << "Screenshot captured: " << path.string() << "\n";
+            std::cout << "Overlay captured: " << path.string() << "\n";
         } else {
-            std::cout << "Warning: screenshot write failed.\n";
+            std::cout << "Warning: overlay capture write failed.\n";
         }
     } catch (const std::exception& error) {
-        std::cout << "Warning: screenshot capture failed: " << error.what() << "\n";
+        std::cout << "Warning: overlay capture failed: " << error.what() << "\n";
     }
 }
 

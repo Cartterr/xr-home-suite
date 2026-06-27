@@ -92,7 +92,7 @@ private:
                   << (options_.enableHandTracking ? std::to_string(options_.handTrackingHz) + " Hz" : "off")
                   << "\n";
         if (options_.screenshotDir && options_.screenshotCount > 0) {
-            std::cout << "Screenshot capture: count=" << options_.screenshotCount
+            std::cout << "Overlay capture: count=" << options_.screenshotCount
                       << " every=" << options_.screenshotIntervalSeconds
                       << "s width=" << options_.screenshotMaxWidth
                       << " dir=" << options_.screenshotDir->string() << "\n";

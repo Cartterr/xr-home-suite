@@ -44,6 +44,8 @@ struct ProbeReport {
     uint32_t leftValidJoints{0};
     uint32_t rightValidJoints{0};
     uint32_t privateCameraSourceCount{0};
+    std::string screenshotMode{"overlay_swapchain_only"};
+    bool screenshotsIncludePassthrough{false};
     std::vector<std::string> screenshotPaths;
 };
 

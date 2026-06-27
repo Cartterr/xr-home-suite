@@ -161,8 +161,8 @@ Native Windows/OpenXR status in this repo:
 
 - Default test: keep depth/hands capped at `30 Hz`.
 - Run only one probe at a time. The `python -m xrhs run-probe` wrapper holds a lock under `C:\XRHomeSuite\cache` so a second wrapper-launched probe fails fast instead of creating a second OpenXR session owner.
-- Normal wrapper runs auto-create a JSON report, compact summary JSON, raw log, and two downscaled left-eye overlay screenshots under `C:\XRHomeSuite\artifacts`.
-- Screenshots capture the app's D3D11 overlay swapchain for visual validation of probe graphics and hand skeletons; they are not raw passthrough camera frames.
+- Normal wrapper runs auto-create a JSON report, compact summary JSON, raw log, and two downscaled left-eye overlay captures under `C:\XRHomeSuite\artifacts`.
+- Overlay captures use the app's D3D11 swapchain for visual validation of probe graphics and hand skeletons. They do not include the passthrough/AR background because `XR_FB_passthrough` is compositor-owned and injected by the Meta runtime after app frame submission.
 - Lag isolation:
   - render + passthrough only: `python -m xrhs run-probe -- --seconds 60 --no-depth --no-hands`
   - hands only: `python -m xrhs run-probe -- --seconds 60 --no-depth --hand-hz 15`
