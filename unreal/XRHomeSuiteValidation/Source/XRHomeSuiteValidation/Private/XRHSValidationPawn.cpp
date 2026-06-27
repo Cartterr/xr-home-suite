@@ -143,9 +143,11 @@ void AXRHSValidationPawn::ToggleHandsRequested()
 void AXRHSValidationPawn::ApplyPassthroughCompositingSettings()
 {
 	const IConsoleVariable* PropagateAlpha = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PostProcessing.PropagateAlpha"));
+	const IConsoleVariable* MobilePropagateAlpha = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.PropagateAlpha"));
 	CompositingState = FString::Printf(
-		TEXT("ctx alpha=%s"),
-		BoolText(PropagateAlpha && PropagateAlpha->GetBool()));
+		TEXT("alpha pc=%s mobile=%s"),
+		BoolText(PropagateAlpha && PropagateAlpha->GetBool()),
+		BoolText(MobilePropagateAlpha && MobilePropagateAlpha->GetBool()));
 }
 
 void AXRHSValidationPawn::TryStartPassthrough()

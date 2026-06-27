@@ -17,6 +17,8 @@ Preferred first path:
 - D3D12 + SM6
 - Forward Renderer + MSAA
 
+Passthrough-over-Link validation is a separate editor preview path. Meta's current Unreal guidance uses VR Preview with Android Vulkan Mobile Preview for passthrough-over-Link. Do not use the forced `-game -vr -d3d12` launch path for passthrough validation; it can initialize the passthrough layer while the normal opaque PC projection layer hides it.
+
 Experimental RTX path after the comfort path is stable:
 
 - NVIDIA DLSS Super Resolution or DLAA
@@ -64,7 +66,30 @@ Build the shader worker if the engine tree is rebuilt or launch reports it missi
 
 Launch the validation scene over Meta Horizon Link:
 
-`C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\Win64\UnrealEditor.exe V:\dev\xr-home-suite\unreal\XRHomeSuiteValidation\XRHomeSuiteValidation.uproject -game -vr -d3d12 -log`
+0. Apply the local editor preview settings:
+
+   `python -m xrhs unreal-link-setup`
+
+1. Open the project in the editor:
+
+   `C:\XRHomeSuite\engines\UE_5.7.4\Engine\Binaries\Win64\UnrealEditor.exe V:\dev\xr-home-suite\unreal\XRHomeSuiteValidation\XRHomeSuiteValidation.uproject -log`
+
+2. Confirm the viewport preview platform is `Android Vulkan Mobile` / `Android_OpenXR`. The source default lives in `Config\DefaultEditorPerProjectUserSettings.ini`:
+
+   - `PreviewPlatformName=Android`
+   - `PreviewShaderFormatName=SF_VULKAN_ES31_ANDROID`
+   - `PreviewShaderPlatformName=VULKAN_ES3_1_ANDROID_Preview`
+   - `PreviewDeviceProfileName=Android_OpenXR`
+
+3. Use the editor's `VR Preview` play mode while Meta Horizon Link is already connected and the headset is awake.
+
+Do not restart Meta Horizon Link from automation while debugging the validation scene. Close the Unreal preview first, then relaunch from the editor if needed.
+
+Official references:
+
+- Meta Link for Unreal: https://developers.meta.com/horizon/documentation/unreal/unreal-link/
+- Meta passthrough over Link: https://developers.meta.com/horizon/documentation/unreal/unreal-passthrough-use-over-link/
+- Meta passthrough setup: https://developers.meta.com/horizon/documentation/unreal/unreal-passthrough-overview-gs/
 
 ## Required Scene
 
@@ -91,8 +116,9 @@ Current implementation status:
 - The scene is source-only and creates a validation grid at runtime.
 - The project enables `OculusXR`, `OpenXR`, `OpenXRHandTracking`, `XRBase`, and `EnhancedInput`.
 - The project disables `XGEController` so machines without Incredibuild do not log XGE shader compile warnings.
-- The renderer defaults to D3D12, SM6, Forward Renderer, instanced stereo, and MSAA.
-- The validation pawn requests a persistent Meta passthrough underlay at startup.
+- The product renderer defaults to D3D12, SM6, Forward Renderer, instanced stereo, and MSAA.
+- The Link passthrough validation path defaults the editor preview platform to Android Vulkan Mobile with the `Android_OpenXR` device profile.
+- The validation pawn requests a persistent Meta passthrough underlay at startup; the app framebuffer must keep alpha enabled so the underlay is visible.
 - The debug panel shows XR runtime, GPU adapter, frame time, passthrough state, hand/controller tracking state, and depth mode.
 - Keyboard toggles exist for early testing: `F1` debug panel, `H` hand/controller visibility request, `D` depth mode label.
 

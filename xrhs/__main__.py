@@ -14,6 +14,7 @@ from .deps import sync_openxr_deps
 from .doctor import run_doctor, run_unreal_doctor
 from .paths import ensure_external_layout, external_home
 from .secrets import run_secret_scan
+from .unreal import run_unreal_link_setup
 
 
 RUNTIME_NOISE_TOKENS = (
@@ -392,6 +393,13 @@ def main(argv: list[str] | None = None) -> int:
 
     unreal_doctor = subparsers.add_parser("unreal-doctor", help="Check Unreal/Meta/NVIDIA engine access.")
     unreal_doctor.set_defaults(func=lambda args: run_unreal_doctor())
+
+    unreal_link_setup = subparsers.add_parser(
+        "unreal-link-setup",
+        help="Prepare local Unreal editor settings for Meta Link passthrough VR Preview.",
+    )
+    unreal_link_setup.add_argument("--engine-root", type=Path, default=external_home() / "engines" / "UE_5.7.4")
+    unreal_link_setup.set_defaults(func=lambda args: run_unreal_link_setup(args.engine_root))
 
     deps = subparsers.add_parser("deps", help="Manage external dependencies.")
     deps_subparsers = deps.add_subparsers(dest="deps_command", required=True)
