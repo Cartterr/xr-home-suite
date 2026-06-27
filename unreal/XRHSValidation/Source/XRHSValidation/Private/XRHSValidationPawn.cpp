@@ -47,7 +47,7 @@ AXRHSValidationPawn::AXRHSValidationPawn()
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("HmdCamera"));
 	Camera->SetupAttachment(SceneRoot);
-	Camera->SetRelativeLocation(FVector(0.0f, 0.0f, 165.0f));
+	Camera->SetRelativeLocation(FVector::ZeroVector);
 	Camera->bLockToHmd = true;
 
 	LeftController = CreateDefaultSubobject<UMotionControllerComponent>(TEXT("LeftController"));
@@ -81,6 +81,8 @@ AXRHSValidationPawn::AXRHSValidationPawn()
 void AXRHSValidationPawn::BeginPlay()
 {
 	Super::BeginPlay();
+	ConfigureFloorTrackingOrigin();
+	StartupRecenterDelaySeconds = 0.25f;
 	ApplyPassthroughCompositingSettings();
 	BuildValidationGrid();
 	TryStartPassthrough();
@@ -90,6 +92,14 @@ void AXRHSValidationPawn::BeginPlay()
 void AXRHSValidationPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (StartupRecenterDelaySeconds > 0.0f)
+	{
+		StartupRecenterDelaySeconds -= DeltaSeconds;
+		if (StartupRecenterDelaySeconds <= 0.0f)
+		{
+			RecenterFloorTrackingOrigin();
+		}
+	}
 	UpdateDebugPanel(DeltaSeconds);
 }
 
@@ -100,6 +110,7 @@ void AXRHSValidationPawn::SetupPlayerInputComponent(UInputComponent* PlayerInput
 	PlayerInputComponent->BindKey(EKeys::F2, IE_Pressed, this, &AXRHSValidationPawn::TogglePassthroughPlacement);
 	PlayerInputComponent->BindKey(EKeys::D, IE_Pressed, this, &AXRHSValidationPawn::CycleDepthMode);
 	PlayerInputComponent->BindKey(EKeys::H, IE_Pressed, this, &AXRHSValidationPawn::ToggleHandsRequested);
+	PlayerInputComponent->BindKey(EKeys::R, IE_Pressed, this, &AXRHSValidationPawn::RecenterFloorTrackingOrigin);
 }
 
 void AXRHSValidationPawn::BuildValidationGrid()
@@ -153,6 +164,31 @@ void AXRHSValidationPawn::TogglePassthroughPlacement()
 {
 	bPassthroughOverlayMode = !bPassthroughOverlayMode;
 	TryStartPassthrough();
+}
+
+void AXRHSValidationPawn::ConfigureFloorTrackingOrigin()
+{
+	Camera->SetRelativeLocation(FVector::ZeroVector);
+
+	if (!GEngine || !GEngine->XRSystem.IsValid())
+	{
+		TrackingOriginState = TEXT("XR system unavailable");
+		return;
+	}
+
+	GEngine->XRSystem->SetTrackingOrigin(EHMDTrackingOrigin::LocalFloor);
+	TrackingOriginState = FString::Printf(TEXT("%s requested"), *TrackingOriginText());
+}
+
+void AXRHSValidationPawn::RecenterFloorTrackingOrigin()
+{
+	ConfigureFloorTrackingOrigin();
+
+	if (GEngine && GEngine->XRSystem.IsValid())
+	{
+		GEngine->XRSystem->ResetOrientationAndPosition(0.0f);
+		TrackingOriginState = FString::Printf(TEXT("%s recentered"), *TrackingOriginText());
+	}
 }
 
 void AXRHSValidationPawn::ApplyPassthroughCompositingSettings()
@@ -218,15 +254,20 @@ void AXRHSValidationPawn::UpdateDebugPanel(float DeltaSeconds)
 		? GEngine->XRSystem->GetSystemName().ToString()
 		: TEXT("none");
 	const FString AdapterName = GRHIAdapterName.IsEmpty() ? TEXT("unknown") : GRHIAdapterName;
+	const FVector CameraWorldLocation = Camera ? Camera->GetComponentLocation() : FVector::ZeroVector;
+	const FVector CameraRelativeLocation = Camera ? Camera->GetRelativeLocation() : FVector::ZeroVector;
 
 	const FString Panel = FString::Printf(
-		TEXT("XR Home Suite\nXR %s connected=%s enabled=%s\nGPU %s\nFrame %.2f ms %.1f fps\nPassthrough %s\nComposite %s\nHands requested=%s L=%s R=%s\nDepth %s"),
+		TEXT("XR Home Suite\nXR %s connected=%s enabled=%s\nGPU %s\nFrame %.2f ms %.1f fps\nTracking %s\nCamera Z world=%.1f rel=%.1f\nPassthrough %s\nComposite %s\nHands requested=%s L=%s R=%s\nDepth %s"),
 		*XRSystemName,
 		UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayConnected() ? TEXT("yes") : TEXT("no"),
 		UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled() ? TEXT("yes") : TEXT("no"),
 		*AdapterName,
 		SmoothedFrameMs,
 		Fps,
+		*TrackingOriginState,
+		CameraWorldLocation.Z,
+		CameraRelativeLocation.Z,
 		*PassthroughState,
 		*CompositingState,
 		bHandsRequested ? TEXT("yes") : TEXT("no"),
@@ -248,6 +289,30 @@ FString AXRHSValidationPawn::DepthModeText() const
 	case EXRHSDepthMode::Adaptive:
 		return TEXT("adaptive requested");
 	}
+	return TEXT("unknown");
+}
+
+FString AXRHSValidationPawn::TrackingOriginText() const
+{
+	if (!GEngine || !GEngine->XRSystem.IsValid())
+	{
+		return TEXT("none");
+	}
+
+	switch (GEngine->XRSystem->GetTrackingOrigin())
+	{
+	case EHMDTrackingOrigin::View:
+		return TEXT("view");
+	case EHMDTrackingOrigin::LocalFloor:
+		return TEXT("local floor");
+	case EHMDTrackingOrigin::Local:
+		return TEXT("local");
+	case EHMDTrackingOrigin::Stage:
+		return TEXT("stage");
+	case EHMDTrackingOrigin::CustomOpenXR:
+		return TEXT("custom");
+	}
+
 	return TEXT("unknown");
 }
 

@@ -56,6 +56,8 @@ private:
 	void ToggleDebugPanel();
 	void ToggleHandsRequested();
 	void TogglePassthroughPlacement();
+	void ConfigureFloorTrackingOrigin();
+	void RecenterFloorTrackingOrigin();
 	void ApplyPassthroughCompositingSettings();
 	void TryStartPassthrough();
 	void UpdateDebugPanel(float DeltaSeconds);
@@ -64,6 +66,7 @@ private:
 	void HandlePassthroughResumed();
 
 	FString DepthModeText() const;
+	FString TrackingOriginText() const;
 	FString TrackingText(const UMotionControllerComponent* MotionController) const;
 
 	EXRHSDepthMode DepthMode = EXRHSDepthMode::Off;
@@ -71,6 +74,8 @@ private:
 	bool bHandsRequested = true;
 	bool bDebugPanelVisible = true;
 	float SmoothedFrameMs = 0.0f;
+	float StartupRecenterDelaySeconds = 0.0f;
+	FString TrackingOriginState = TEXT("pending");
 	FString PassthroughState = TEXT("pending");
 	FString CompositingState = TEXT("pending");
 };

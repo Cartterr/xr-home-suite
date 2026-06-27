@@ -150,7 +150,7 @@ Current implementation status:
 - The validation pawn requests persistent Meta passthrough at startup. Editor VR Preview starts in overlay-fallback mode so the camera feed is visible even if the app framebuffer is still opaque; underlay mode remains available for alpha validation.
 - Persistent passthrough parameters must call `ApplyShape()` after setting layer placement/opacity because the Meta editor path reloads shape settings from the serializable temporary fields.
 - The debug panel shows XR runtime, GPU adapter, frame time, passthrough state, hand/controller tracking state, and depth mode.
-- Keyboard toggles exist for early testing: `F1` debug panel, `F2` passthrough overlay/underlay placement, `H` hand/controller visibility request, `D` depth mode label.
+- Keyboard toggles exist for early testing: `F1` debug panel, `F2` passthrough overlay/underlay placement, `R` floor-origin HMD recenter, `H` hand/controller visibility request, `D` depth mode label.
 
 Current clean-launch verification:
 
