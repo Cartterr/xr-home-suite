@@ -44,6 +44,14 @@ void writeBool(std::ofstream& file, const char* name, bool value) {
     file << "  \"" << name << "\": " << (value ? "true" : "false") << ",\n";
 }
 
+void writeStringArray(std::ofstream& file, const char* name, const std::vector<std::string>& values, bool comma = true) {
+    file << "  \"" << name << "\": [";
+    for (size_t i = 0; i < values.size(); ++i) {
+        file << (i == 0 ? "" : ", ") << "\"" << jsonEscape(values[i]) << "\"";
+    }
+    file << "]" << (comma ? "," : "") << "\n";
+}
+
 template <typename T>
 void writeNumber(std::ofstream& file, const char* name, T value, bool comma = true) {
     file << "  \"" << name << "\": " << value << (comma ? "," : "") << "\n";
@@ -82,11 +90,11 @@ void writeProbeReport(const std::filesystem::path& path, const ProbeReport& repo
     writeString(file, "runtimeVersion", report.runtimeVersion);
     writeString(file, "gpuAdapterName", report.gpuAdapterName);
     writeString(file, "gpuAdapterLuid", report.gpuAdapterLuid);
-    file << "  \"enabledExtensions\": [";
-    for (size_t i = 0; i < report.enabledExtensions.size(); ++i) {
-        file << (i == 0 ? "" : ", ") << "\"" << jsonEscape(report.enabledExtensions[i]) << "\"";
-    }
-    file << "],\n";
+    writeStringArray(file, "enabledExtensions", report.enabledExtensions);
+    writeNumber(file, "eyeSwapchainWidth", report.eyeSwapchainWidth);
+    writeNumber(file, "eyeSwapchainHeight", report.eyeSwapchainHeight);
+    writeNumber(file, "eyeSwapchainImageCount", report.eyeSwapchainImageCount);
+    writeNumber(file, "eyeSwapchainFormat", report.eyeSwapchainFormat);
     writeBool(file, "passthroughSupported", report.passthroughSupported);
     writeBool(file, "passthroughReady", report.passthroughReady);
     writeNumber(file, "passthroughCapabilities", report.passthroughCapabilities);
@@ -107,7 +115,8 @@ void writeProbeReport(const std::filesystem::path& path, const ProbeReport& repo
     writeNumber(file, "activeHandCount", report.activeHandCount);
     writeNumber(file, "leftValidJoints", report.leftValidJoints);
     writeNumber(file, "rightValidJoints", report.rightValidJoints);
-    writeNumber(file, "privateCameraSourceCount", report.privateCameraSourceCount, false);
+    writeNumber(file, "privateCameraSourceCount", report.privateCameraSourceCount);
+    writeStringArray(file, "screenshotPaths", report.screenshotPaths, false);
     file << "}\n";
 }
 

@@ -68,6 +68,13 @@ void D3D11Renderer::initializeDevice(OpenXrContext& context) {
 void D3D11Renderer::appendReport(ProbeReport& report) const {
     report.gpuAdapterName = adapterName_;
     report.gpuAdapterLuid = adapterLuid_;
+    if (!swapchains_.empty()) {
+        report.eyeSwapchainWidth = static_cast<uint32_t>(swapchains_[0].width);
+        report.eyeSwapchainHeight = static_cast<uint32_t>(swapchains_[0].height);
+        report.eyeSwapchainImageCount = firstEyeImageCount_;
+        report.eyeSwapchainFormat = static_cast<int64_t>(swapchainFormat_);
+    }
+    report.screenshotPaths = screenshotPaths_;
 }
 
 }  // namespace xrh

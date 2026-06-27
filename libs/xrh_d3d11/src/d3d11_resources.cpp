@@ -7,6 +7,7 @@
 #include <d3dcompiler.h>
 #include <iostream>
 #include <iterator>
+#include <utility>
 
 namespace xrh {
 
@@ -45,6 +46,7 @@ void D3D11Renderer::createRenderResources(OpenXrContext& context) {
     if (selectedFormat == DXGI_FORMAT_UNKNOWN) {
         selectedFormat = static_cast<DXGI_FORMAT>(formats.front());
     }
+    swapchainFormat_ = selectedFormat;
 
     swapchains_.resize(viewCount);
     for (uint32_t eye = 0; eye < viewCount; ++eye) {
@@ -73,6 +75,9 @@ void D3D11Renderer::createRenderResources(OpenXrContext& context) {
                                            &imageCount,
                                            reinterpret_cast<XrSwapchainImageBaseHeader*>(swapchain.images.data())),
                 "xrEnumerateSwapchainImages(list)");
+        if (eye == 0) {
+            firstEyeImageCount_ = imageCount;
+        }
 
         swapchain.renderTargets.resize(imageCount);
         for (uint32_t image = 0; image < imageCount; ++image) {
@@ -172,6 +177,15 @@ void D3D11Renderer::cleanup() {
             xrDestroySwapchain(swapchain.handle);
             swapchain.handle = XR_NULL_HANDLE;
         }
+    }
+}
+
+void D3D11Renderer::configureScreenshotCapture(ScreenshotCaptureConfig config) {
+    screenshotConfig_ = std::move(config);
+    screenshotPaths_.clear();
+    nextScreenshotAtSeconds_ = 0.5;
+    if (!screenshotConfig_.directory.empty() && screenshotConfig_.maxCaptures > 0) {
+        std::filesystem::create_directories(screenshotConfig_.directory);
     }
 }
 

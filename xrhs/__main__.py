@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import datetime as dt
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -45,6 +46,8 @@ VISIBLE_PROBE_PREFIXES = (
     "Private Link camera-source count probe:",
     "Put the headset",
     "Sensor polling caps:",
+    "Screenshot capture:",
+    "Screenshot captured:",
     "Session running.",
     "frames=",
     "Ctrl+C received.",
@@ -75,9 +78,157 @@ def is_visible_probe_line(line: str) -> bool:
     return not stripped or any(stripped.startswith(prefix) for prefix in VISIBLE_PROBE_PREFIXES)
 
 
-def default_probe_log_path() -> Path:
+def default_run_id() -> str:
     timestamp = dt.datetime.now(dt.UTC).strftime("%Y%m%d-%H%M%S-%f")
-    return external_home() / "artifacts" / "logs" / f"openxr_probe-{timestamp}-{os.getpid()}.log"
+    return f"openxr_probe-{timestamp}-{os.getpid()}"
+
+
+def default_probe_log_path(run_id: str) -> Path:
+    return external_home() / "artifacts" / "logs" / f"{run_id}.log"
+
+
+def default_probe_report_path(run_id: str) -> Path:
+    return external_home() / "artifacts" / "reports" / f"{run_id}.json"
+
+
+def default_capture_dir(run_id: str) -> Path:
+    return external_home() / "artifacts" / "captures" / run_id
+
+
+def has_probe_flag(values: list[str], flag: str) -> bool:
+    return any(value == flag or value.startswith(f"{flag}=") for value in values)
+
+
+def probe_flag_value(values: list[str], flag: str) -> Path | None:
+    for index, value in enumerate(values):
+        if value == flag and index + 1 < len(values):
+            return Path(values[index + 1])
+        if value.startswith(f"{flag}="):
+            return Path(value.split("=", 1)[1])
+    return None
+
+
+def ensure_probe_artifacts(args: argparse.Namespace, probe_args: list[str], run_id: str) -> tuple[list[str], Path | None]:
+    updated = list(probe_args)
+    report_path = probe_flag_value(updated, "--report")
+    if report_path is None:
+        report_path = default_probe_report_path(run_id)
+        updated.extend(["--report", str(report_path)])
+
+    capture_flags = ("--capture-dir", "--capture-count", "--capture-every", "--capture-width")
+    if not args.no_auto_captures and not any(has_probe_flag(updated, flag) for flag in capture_flags):
+        updated.extend([
+            "--capture-dir",
+            str(default_capture_dir(run_id)),
+            "--capture-count",
+            str(args.capture_count),
+            "--capture-every",
+            str(args.capture_every),
+            "--capture-width",
+            str(args.capture_width),
+        ])
+    return updated, report_path
+
+
+def rounded(value: object, digits: int = 2) -> float | int | None:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return round(value, digits)
+    return None
+
+
+def probe_status(data: dict[str, object]) -> str:
+    if data.get("exitCode") != 0:
+        return "fail"
+    if data.get("submittedFrames") == 0:
+        return "no_frames"
+    return "pass"
+
+
+def write_probe_summary(report_path: Path, log_path: Path | None, summary_path: Path | None) -> None:
+    if not report_path.exists():
+        print(f"Probe summary: skipped, report was not written at {report_path}")
+        return
+
+    data = json.loads(report_path.read_text(encoding="utf-8"))
+    screenshots = data.get("screenshotPaths", [])
+    summary = {
+        "status": probe_status(data),
+        "runtime": {
+            "name": data.get("runtimeName"),
+            "version": data.get("runtimeVersion"),
+            "gpu": data.get("gpuAdapterName"),
+        },
+        "render": {
+            "frames": data.get("submittedFrames"),
+            "elapsedSeconds": rounded(data.get("elapsedSeconds")),
+            "averageFps": rounded(data.get("submittedFramesPerSecond")),
+            "eyeSwapchain": {
+                "width": data.get("eyeSwapchainWidth"),
+                "height": data.get("eyeSwapchainHeight"),
+                "images": data.get("eyeSwapchainImageCount"),
+                "format": data.get("eyeSwapchainFormat"),
+            },
+        },
+        "passthrough": {
+            "supported": data.get("passthroughSupported"),
+            "ready": data.get("passthroughReady"),
+            "capabilities": data.get("passthroughCapabilities"),
+            "privateCameraSourceCount": data.get("privateCameraSourceCount"),
+        },
+        "depth": {
+            "supported": data.get("environmentDepthSupported"),
+            "ready": data.get("environmentDepthReady"),
+            "width": data.get("environmentDepthWidth"),
+            "height": data.get("environmentDepthHeight"),
+            "frames": data.get("environmentDepthFrames"),
+            "averageFps": rounded(data.get("environmentDepthFramesPerSecond")),
+            "lastResult": data.get("lastEnvironmentDepthResult"),
+        },
+        "hands": {
+            "supported": data.get("handTrackingSupported"),
+            "ready": data.get("handTrackingReady"),
+            "frames": data.get("handTrackingFrames"),
+            "averageFps": rounded(data.get("handTrackingFramesPerSecond")),
+            "activeHandCount": data.get("activeHandCount"),
+            "leftValidJoints": data.get("leftValidJoints"),
+            "rightValidJoints": data.get("rightValidJoints"),
+        },
+        "artifacts": {
+            "report": str(report_path),
+            "summary": str(summary_path) if summary_path else None,
+            "log": str(log_path) if log_path else None,
+            "screenshots": screenshots,
+        },
+    }
+
+    if summary_path is None:
+        summary_path = report_path.with_suffix(".summary.json")
+        summary["artifacts"]["summary"] = str(summary_path)
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+    print("Probe summary:")
+    print(
+        "  "
+        f"{summary['status'].upper()} "
+        f"runtime={summary['runtime']['name']} {summary['runtime']['version']} "
+        f"gpu={summary['runtime']['gpu']}"
+    )
+    print(
+        "  "
+        f"render={summary['render']['averageFps']} fps "
+        f"frames={summary['render']['frames']} "
+        f"eye={summary['render']['eyeSwapchain']['width']}x{summary['render']['eyeSwapchain']['height']}"
+    )
+    print(
+        "  "
+        f"depthReady={summary['depth']['ready']} depthFps={summary['depth']['averageFps']} "
+        f"handsReady={summary['hands']['ready']} activeHands={summary['hands']['activeHandCount']} "
+        f"cameraSources={summary['passthrough']['privateCameraSourceCount']}"
+    )
+    print(f"  screenshots={len(screenshots)} summary={summary_path}")
 
 
 @contextlib.contextmanager
@@ -201,12 +352,19 @@ def run_probe(args: argparse.Namespace) -> int:
     probe_args = args.probe_args
     if probe_args and probe_args[0] == "--":
         probe_args = probe_args[1:]
+    run_id = default_run_id()
+    probe_args, report_path = ensure_probe_artifacts(args, probe_args, run_id)
     command = [str(exe), *probe_args]
+    log_path = args.log or default_probe_log_path(run_id)
     try:
         with probe_owner_lock(command):
             if args.raw_output:
-                return run_command(command)
-            return run_quiet_probe(command, args.log or default_probe_log_path())
+                exit_code = run_command(command)
+                write_probe_summary(report_path, None, args.summary)
+                return exit_code
+            exit_code = run_quiet_probe(command, log_path)
+            write_probe_summary(report_path, log_path, args.summary)
+            return exit_code
     except ProbeLockBusy:
         return 2
 
@@ -246,6 +404,11 @@ def main(argv: list[str] | None = None) -> int:
     probe.add_argument("--config", default="Debug")
     probe.add_argument("--raw-output", action="store_true", help="Print unfiltered Meta runtime output.")
     probe.add_argument("--log", type=Path, help="Path for the full unfiltered probe log.")
+    probe.add_argument("--summary", type=Path, help="Path for the compact probe summary JSON.")
+    probe.add_argument("--no-auto-captures", action="store_true", help="Do not add default screenshot capture flags.")
+    probe.add_argument("--capture-count", type=int, default=2, help="Default screenshot count when probe args omit capture flags.")
+    probe.add_argument("--capture-every", type=int, default=2, help="Default seconds between screenshots.")
+    probe.add_argument("--capture-width", type=int, default=960, help="Default maximum screenshot width.")
     probe.add_argument("probe_args", nargs=argparse.REMAINDER)
     probe.set_defaults(func=run_probe)
 

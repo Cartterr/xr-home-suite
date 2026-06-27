@@ -59,6 +59,14 @@ private:
         renderer_.initializeDevice(context_);
         context_.createD3D11Session(renderer_.device());
         context_.createAppSpace();
+        if (options_.screenshotDir && options_.screenshotCount > 0) {
+            renderer_.configureScreenshotCapture(ScreenshotCaptureConfig{
+                *options_.screenshotDir,
+                static_cast<uint32_t>(options_.screenshotCount),
+                static_cast<double>(options_.screenshotIntervalSeconds),
+                static_cast<uint32_t>(options_.screenshotMaxWidth),
+            });
+        }
         renderer_.createRenderResources(context_);
         meta_.initialize(context_, options_);
     }
@@ -83,6 +91,12 @@ private:
                   << " hands="
                   << (options_.enableHandTracking ? std::to_string(options_.handTrackingHz) + " Hz" : "off")
                   << "\n";
+        if (options_.screenshotDir && options_.screenshotCount > 0) {
+            std::cout << "Screenshot capture: count=" << options_.screenshotCount
+                      << " every=" << options_.screenshotIntervalSeconds
+                      << "s width=" << options_.screenshotMaxWidth
+                      << " dir=" << options_.screenshotDir->string() << "\n";
+        }
 
         while (!context_.exitRequested()) {
             observeShutdownRequest();
@@ -150,7 +164,7 @@ private:
             meta_.locateHands(context_, frameState.predictedDisplayTime);
         }
 
-        renderer_.renderEyes(meta_.overlayState(), startTime_);
+        renderer_.renderEyes(meta_.overlayState(), startTime_, frameIndex_);
         meta_.appendPassthroughLayer(layers, passthroughLayerInfo);
 
         const auto& projectionViews = renderer_.projectionViews();

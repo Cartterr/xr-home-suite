@@ -19,6 +19,10 @@ struct ProbeReport {
     std::string gpuAdapterName;
     std::string gpuAdapterLuid;
     std::vector<std::string> enabledExtensions;
+    uint32_t eyeSwapchainWidth{0};
+    uint32_t eyeSwapchainHeight{0};
+    uint32_t eyeSwapchainImageCount{0};
+    int64_t eyeSwapchainFormat{0};
     bool passthroughSupported{false};
     bool passthroughReady{false};
     uint64_t passthroughCapabilities{0};
@@ -40,6 +44,7 @@ struct ProbeReport {
     uint32_t leftValidJoints{0};
     uint32_t rightValidJoints{0};
     uint32_t privateCameraSourceCount{0};
+    std::vector<std::string> screenshotPaths;
 };
 
 void writeProbeReport(const std::filesystem::path& path, const ProbeReport& report);

@@ -64,7 +64,17 @@ python -m xrhs run-probe -- --seconds 30 --hand-hz 15 --depth-hz 15
 python -m xrhs run-probe -- --seconds 5 --no-depth --no-hands --report C:\XRHomeSuite\artifacts\reports\render-only.json
 ```
 
-`run-probe` filters noisy Meta runtime IPC output by default and writes the full raw log under `C:\XRHomeSuite\artifacts\logs`. Use `python -m xrhs run-probe --raw-output -- ...` only when debugging the runtime itself.
+`run-probe` filters noisy Meta runtime IPC output by default and writes the full raw log under `C:\XRHomeSuite\artifacts\logs`. It also auto-writes a JSON report, a compact `.summary.json`, and two downscaled left-eye overlay screenshots under `C:\XRHomeSuite\artifacts` unless capture flags are supplied. Use `python -m xrhs run-probe --raw-output -- ...` only when debugging the runtime itself.
+
+Useful artifact flags:
+
+```bash
+python -m xrhs run-probe --capture-count 3 --capture-every 2 --capture-width 960 -- --seconds 15 --no-depth --hand-hz 30
+python -m xrhs run-probe --no-auto-captures -- --seconds 5 --no-depth --no-hands
+python -m xrhs run-probe --summary C:\XRHomeSuite\artifacts\reports\hands.summary.json -- --seconds 15 --no-depth --hand-hz 30
+```
+
+Screenshot captures come from the app's D3D11 eye overlay swapchain. They show the rendered probe overlay, status bars, and projected hand skeleton, not the raw passthrough camera image.
 
 Pressing `Ctrl+C` in the native app requests a graceful OpenXR shutdown. The app finishes any in-flight frame, pauses/destroys passthrough, stops depth, destroys hand trackers, and then destroys the OpenXR session/instance instead of letting Windows terminate the process mid-frame.
 

@@ -181,9 +181,10 @@ void D3D11Renderer::appendHandPreview(std::vector<Vertex>& vertices, uint32_t ey
     }
 }
 
-void D3D11Renderer::renderEyes(const OverlayState& state, const std::chrono::steady_clock::time_point& startTime) {
+void D3D11Renderer::renderEyes(const OverlayState& state, const std::chrono::steady_clock::time_point& startTime,
+                               uint64_t frameIndex) {
     for (uint32_t eye = 0; eye < views_.size(); ++eye) {
-        renderEye(eye, state, startTime);
+        renderEye(eye, state, startTime, frameIndex);
         projectionViews_[eye].pose = views_[eye].pose;
         projectionViews_[eye].fov = views_[eye].fov;
         projectionViews_[eye].subImage.swapchain = swapchains_[eye].handle;
@@ -194,7 +195,8 @@ void D3D11Renderer::renderEyes(const OverlayState& state, const std::chrono::ste
 }
 
 void D3D11Renderer::renderEye(uint32_t eye, const OverlayState& state,
-                              const std::chrono::steady_clock::time_point& startTime) {
+                              const std::chrono::steady_clock::time_point& startTime,
+                              uint64_t frameIndex) {
     SwapchainBundle& swapchain = swapchains_[eye];
     uint32_t imageIndex = 0;
     XrSwapchainImageAcquireInfo acquireInfo{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
@@ -255,6 +257,9 @@ void D3D11Renderer::renderEye(uint32_t eye, const OverlayState& state,
     constexpr float blendFactor[] = {0.0f, 0.0f, 0.0f, 0.0f};
     context_->OMSetBlendState(blendState_.Get(), blendFactor, 0xFFFFFFFF);
     context_->Draw(static_cast<UINT>(vertices.size()), 0);
+
+    const double elapsedSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - startTime).count();
+    captureEyeIfNeeded(eye, frameIndex, elapsedSeconds, swapchain.images[imageIndex].texture);
 
     XrSwapchainImageReleaseInfo releaseInfo{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
     checkXr(xrReleaseSwapchainImage(swapchain.handle, &releaseInfo), "xrReleaseSwapchainImage");

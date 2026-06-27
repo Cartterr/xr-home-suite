@@ -2,6 +2,7 @@ add_library(xrh_d3d11
     src/d3d11_device.cpp
     src/d3d11_resources.cpp
     src/overlay_renderer.cpp
+    src/screenshot_capture.cpp
 )
 
 target_include_directories(xrh_d3d11 PUBLIC include)
